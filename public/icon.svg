@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#1f2925"/>
+  <circle cx="384" cy="120" r="88" fill="#e8b360"/>
+  <path d="M145 118h214v276H145z" fill="#f4f0df" transform="rotate(-7 252 256)"/>
+  <text x="160" y="255" fill="#354b45" font-family="serif" font-size="54" font-weight="600">FIELD</text>
+  <text x="160" y="315" fill="#c65d43" font-family="serif" font-size="54" font-weight="600">NOTES</text>
+</svg>

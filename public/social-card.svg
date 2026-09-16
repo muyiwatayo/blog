@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#f5f3ed"/>
+  <circle cx="1010" cy="80" r="190" fill="#e8b360"/>
+  <rect x="700" y="90" width="310" height="410" fill="#f4f0df" transform="rotate(-7 855 295)"/>
+  <text x="100" y="165" fill="#6e756f" font-family="monospace" font-size="22" letter-spacing="5">INDEPENDENT NOTES</text>
+  <text x="100" y="315" fill="#1f2925" font-family="Georgia, serif" font-size="92">Fieldnotes.</text>
+  <text x="105" y="390" fill="#c65d43" font-family="Georgia, serif" font-size="40">Ideas worth keeping.</text>
+  <text x="105" y="530" fill="#6e756f" font-family="monospace" font-size="18">ESSAYS  /  POEMS  /  LETTERS  /  STORIES</text>
+</svg>

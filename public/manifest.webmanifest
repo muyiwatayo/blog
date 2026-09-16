@@ -1,0 +1,12 @@
+{
+  "name": "Fieldnotes",
+  "short_name": "Fieldnotes",
+  "description": "A quiet home for essays, poems, novels, letters, and birthday specials.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f3ed",
+  "theme_color": "#1f2925",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
