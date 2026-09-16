@@ -1,3 +1,4 @@
+{
 const seedPosts = [
   { id: 'attention', type: 'Essay', category: 'Essays', title: 'The quiet architecture of attention', excerpt: 'A field guide to making room for the thoughts that do not arrive with a notification sound.', body: 'Attention is not a personality trait. It is a place we make. It lives in the spaces between the alert and the answer, in the walk without a podcast, in the notebook left open on the table.\n\nThe work is not to become unreachable. It is to decide what deserves to reach us.', author: 'Mina Kwon', date: 'Sep 12, 2026', read: '8 min read', color: 'rust', image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=85' },
   { id: 'small-internet', type: 'Essay', category: 'Culture', title: 'Notes from the small internet', excerpt: 'What gets better when the audience gets smaller, the edges get softer, and nobody is optimizing for reach.', body: 'The best rooms on the internet still feel like rooms. They have a scale you can hold in your head, a few familiar names, and enough context to make a strange idea feel welcome.', author: 'Theo Hart', date: 'Sep 08, 2026', read: '6 min read', color: 'blue', image: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=900&q=85' },
@@ -60,3 +61,4 @@ document.getElementById('chatButton').onclick = openChat
 document.getElementById('subscribeForm').onsubmit = subscribe
 if (supabaseConfigured) { supabase.auth.getSession().then(({ data }) => { user = data.session?.user || null; document.getElementById('accountButton').textContent = user ? 'Writer studio' : 'Sign in' }); supabase.auth.onAuthStateChange((_event, session) => { user = session?.user || null; document.getElementById('accountButton').textContent = user ? 'Writer studio' : 'Sign in' }); supabase.from('posts').select('*').order('created_at', { ascending: false }).then(({ data }) => { if (data?.length) { posts = data; render() } }) }
 render()
+}
