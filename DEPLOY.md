@@ -2,11 +2,12 @@
 
 ## Frontend
 
-Deploy this Vite project to Vercel, Netlify, or another static host.
+Deploy this plain HTML/CSS/JavaScript project to Vercel, Netlify, or another static host.
 
-- Build command: `npm run build`
-- Output directory: `dist`
-- Frontend variables: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+- Framework preset: `Other`
+- Build command: leave empty
+- Output directory: leave empty
+- The Supabase publishable configuration is in `src/config.js`.
 
 ## Subscriber notifications
 
