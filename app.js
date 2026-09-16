@@ -59,6 +59,19 @@ document.getElementById('writeButton').onclick = openComposer
 document.getElementById('shareYours').onclick = openComposer
 document.getElementById('chatButton').onclick = openChat
 document.getElementById('subscribeForm').onsubmit = subscribe
-if (supabaseConfigured) { supabase.auth.getSession().then(({ data }) => { user = data.session?.user || null; document.getElementById('accountButton').textContent = user ? 'Writer studio' : 'Sign in' }); supabase.auth.onAuthStateChange((_event, session) => { user = session?.user || null; document.getElementById('accountButton').textContent = user ? 'Writer studio' : 'Sign in' }); supabase.from('posts').select('*').order('created_at', { ascending: false }).then(({ data }) => { if (data?.length) { posts = data; render() } }) }
+if (supabaseConfigured) {
+  const callbackError = new URLSearchParams(location.hash.replace(/^#/, '?')).get('error_description')
+  if (callbackError) notice(callbackError)
+  supabase.auth.getSession().then(({ data }) => {
+    user = data.session?.user || null
+    document.getElementById('accountButton').textContent = user ? 'Writer studio' : 'Sign in'
+  })
+  supabase.auth.onAuthStateChange((event, session) => {
+    user = session?.user || null
+    document.getElementById('accountButton').textContent = user ? 'Writer studio' : 'Sign in'
+    if (event === 'SIGNED_IN' && user) { closeModal(); openDashboard() }
+  })
+  supabase.from('posts').select('*').order('created_at', { ascending: false }).then(({ data }) => { if (data?.length) { posts = data; render() } })
+}
 render()
 }
