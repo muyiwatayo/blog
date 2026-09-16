@@ -65,6 +65,7 @@ if (supabaseConfigured) {
   supabase.auth.getSession().then(({ data }) => {
     user = data.session?.user || null
     document.getElementById('accountButton').textContent = user ? 'Writer studio' : 'Sign in'
+    if (user && location.hash === '#write') openComposer()
   })
   supabase.auth.onAuthStateChange((event, session) => {
     user = session?.user || null

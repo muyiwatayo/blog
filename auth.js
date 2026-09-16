@@ -14,7 +14,7 @@ function togglePassword() {
 }
 
 async function signInWithGoogle() {
-  const { error } = await authClient.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })
+  const { error } = await authClient.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/dashboard.html` } })
   if (error) setMessage(error.message, true)
 }
 

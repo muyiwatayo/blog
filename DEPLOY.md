@@ -7,7 +7,7 @@ Deploy this plain HTML/CSS/JavaScript project to Vercel, Netlify, or another sta
 - Framework preset: `Other`
 - Build command: leave empty
 - Output directory: leave empty
-- The Supabase publishable configuration is in `src/config.js`.
+- The Supabase publishable configuration is in `config.js`.
 
 ## Subscriber notifications
 
@@ -23,3 +23,13 @@ supabase secrets set RESEND_API_KEY=re_xxx RESEND_FROM_EMAIL="Fieldnotes <hello@
 Use a verified sending domain in Resend. Never put `SUPABASE_SERVICE_ROLE_KEY` or `RESEND_API_KEY` in the React `.env` file. Supabase provides its service role key to the Edge Function automatically.
 
 After deployment, set the deployed domain in Supabase **Authentication → URL Configuration** and add it to the Google OAuth redirect settings as needed.
+
+Run the latest `supabase-schema.sql` after any storage policy changes. Configure the Edge Function secrets in Supabase:
+
+```text
+RESEND_API_KEY
+RESEND_FROM_EMAIL=Fieldnotes <hello@your-verified-domain.com>
+SITE_URL=https://fieldnotes-blog.vercel.app
+```
+
+Do not create or share a common demo password. For testing, create a separate account at `signup.html`; public seed notes are already available to readers without an account.
