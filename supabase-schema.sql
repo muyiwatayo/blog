@@ -8,7 +8,7 @@ create table if not exists public.posts (
   author text not null,
   author_id uuid not null references auth.users(id) on delete cascade,
   read_time integer not null default 1,
-  image text,
+  image text, 
   created_at timestamptz not null default now()
 );
 

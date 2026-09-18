@@ -3,18 +3,27 @@ const authClient = window.supabase.createClient(authConfig.supabaseUrl, authConf
 
 function setMessage(text, error = false) {
   const element = document.getElementById('authMessage')
-  if (element) { element.textContent = text; element.className = error ? 'form-message error' : 'form-message' }
+  if (element) {
+    element.textContent = text
+    element.className = error ? 'form-message error' : 'form-message'
+  }
 }
 
 function togglePassword() {
   const input = document.getElementById('password')
   const button = document.getElementById('passwordToggle')
-  input.type = input.type === 'password' ? 'text' : 'password'
-  button.textContent = input.type === 'password' ? 'Show' : 'Hide'
+  if (input && button) {
+    input.type = input.type === 'password' ? 'text' : 'password'
+    button.textContent = input.type === 'password' ? 'Show' : 'Hide'
+  }
 }
 
 async function signInWithGoogle() {
-  const { error } = await authClient.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/dashboard.html` } })
+  const redirectTo = `${window.location.origin}/dashboard.html`
+  const { error } = await authClient.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo }
+  })
   if (error) setMessage(error.message, true)
 }
 
@@ -22,12 +31,34 @@ async function submitAuth(event) {
   event.preventDefault()
   const form = new FormData(event.currentTarget)
   const mode = document.body.dataset.mode
-  const result = mode === 'signup'
-    ? await authClient.auth.signUp({ email: form.get('email'), password: form.get('password'), options: { data: { display_name: form.get('name') } } })
-    : await authClient.auth.signInWithPassword({ email: form.get('email'), password: form.get('password') })
-  if (result.error) setMessage(result.error.message, true)
-  else if (mode === 'signup') setMessage('Account created. Check your email, then sign in.')
-  else window.location.href = 'dashboard.html'
+  const email = form.get('email')?.toString().trim()
+  const password = form.get('password')?.toString().trim()
+  const name = form.get('name')?.toString().trim()
+
+  if (mode === 'signup') {
+    const { data, error } = await authClient.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { display_name: name },
+        emailRedirectTo: `${window.location.origin}/dashboard.html`
+      }
+    })
+    if (error) {
+      setMessage(error.message, true)
+    } else if (data.session) {
+      window.location.href = 'dashboard.html'
+    } else {
+      setMessage('Account created! Please check your email to confirm your account before signing in.')
+    }
+  } else {
+    const { error } = await authClient.auth.signInWithPassword({ email, password })
+    if (error) {
+      setMessage(error.message, true)
+    } else {
+      window.location.href = 'dashboard.html'
+    }
+  }
 }
 
 document.getElementById('authForm')?.addEventListener('submit', submitAuth)
