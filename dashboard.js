@@ -1,40 +1,52 @@
-const dashboardConfig = window.FIELDNOTES_CONFIG || {}
-const dashboardClient = window.supabase.createClient(dashboardConfig.supabaseUrl, dashboardConfig.supabaseAnonKey)
+// Fix: use window.ENV (exported by config.js), not window.FIELDNOTES_CONFIG
+const supabaseUrl = window.ENV?.SUPABASE_URL || 'https://tyicduuijghugeztrmmj.supabase.co';
+const supabaseAnonKey = window.ENV?.SUPABASE_ANON_KEY || 'sb_publishable_xYH_3Mnn4rcfnKym7RVyMw_X2FASqON';
+const dashboardClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
 
-const safe = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]))
+const safe = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 function notice(text) {
-  const root = document.getElementById('noticeRoot')
-  if (!root) return
-  root.innerHTML = `<div class="data-notice">${safe(text)}<button onclick="document.getElementById('noticeRoot').innerHTML=''">×</button></div>`
+  const root = document.getElementById('noticeRoot');
+  if (!root) return;
+  root.innerHTML = `<div class="data-notice">${safe(text)}<button onclick="document.getElementById('noticeRoot').innerHTML=''">×</button></div>`;
 }
 
 async function loadDashboard() {
-  const { data: { user }, error: userError } = await dashboardClient.auth.getUser()
-  if (userError || !user) {
-    window.location.href = 'signin.html'
-    return
+  // Guard: check session — redirect to signin if not authenticated
+  const { data: { session }, error: sessionError } = await dashboardClient.auth.getSession();
+
+  if (sessionError || !session) {
+    window.location.href = 'signin.html';
+    return;
   }
+
+  const { data: { user }, error: userError } = await dashboardClient.auth.getUser();
+  if (userError || !user) {
+    window.location.href = 'signin.html';
+    return;
+  }
+
+  // Show dashboard, hide loading screen
+  document.getElementById('dashboardLoading').hidden = true;
+  const content = document.getElementById('dashboardContent');
+  content.hidden = false;
 
   // Fetch author posts
   const { data: posts } = await dashboardClient
     .from('posts')
     .select('*')
     .eq('author_id', user.id)
-    .order('created_at', { ascending: false })
+    .order('created_at', { ascending: false });
 
   // Read saved notes from browser local storage
-  const savedIds = JSON.parse(localStorage.getItem('fieldnotes-saved') || '[]')
-  
-  const name = user.user_metadata?.display_name || user.email.split('@')[0]
-  const bio = user.user_metadata?.bio || 'Writer, reader, and thinker on Fieldnotes.'
-  const initials = name.split(/\s+/).map((p) => p[0]).join('').slice(0, 2).toUpperCase()
+  const savedIds = JSON.parse(localStorage.getItem('fieldnotes-saved') || '[]');
 
-  document.getElementById('dashboardLoading').hidden = true
-  const content = document.getElementById('dashboardContent')
-  content.hidden = false
+  const name = user.user_metadata?.display_name || user.user_metadata?.full_name || user.email.split('@')[0];
+  const bio = user.user_metadata?.bio || 'Writer, reader, and thinker on Fieldnotes.';
+  const initials = name.split(/\s+/).map((p) => p[0]).join('').slice(0, 2).toUpperCase();
 
-  content.innerHTML = `
+  const inner = document.getElementById('dashboardInner');
+  inner.innerHTML = `
     <div class="dashboard-shell">
       <div class="dashboard-identity">
         <div class="initials-badge">${safe(initials)}</div>
@@ -46,7 +58,6 @@ async function loadDashboard() {
       </div>
 
       <div class="dashboard-actions">
-        <a class="dashboard-home" href="index.html">Home</a>
         <button class="publish-button" id="openComposerBtn">Write a note <span>+</span></button>
         <button class="text-link" id="openProfileBtn">Edit Profile Card</button>
       </div>
@@ -58,7 +69,7 @@ async function loadDashboard() {
       </div>
 
       <div class="dashboard-heading">
-        <p class="eyebrow">Your Library & Profile</p>
+        <p class="eyebrow">Your Library &amp; Profile</p>
         <h2>Manage your writing.</h2>
       </div>
 
@@ -76,22 +87,22 @@ async function loadDashboard() {
             <span>${safe(post.post_type || 'Essay')}</span>
             <h3>${safe(post.title)}</h3>
             <p>${safe(post.excerpt)}</p>
-            <small>${new Date(post.created_at).toLocaleDateString()} ·${post.read_time || 1} min read</small>
+            <small>${new Date(post.created_at).toLocaleDateString()} · ${post.read_time || 1} min read</small>
           </article>
         `).join('') : '<p class="empty-state">You have not published anything yet. Click "Write a note" to start.</p>'}
       </div>
     </div>
-  `
+  `;
 
-  document.getElementById('openComposerBtn').onclick = () => openDashboardComposer(user)
-  document.getElementById('openProfileBtn').onclick = () => openProfileEditor(user)
+  document.getElementById('openComposerBtn').onclick = () => openDashboardComposer(user);
+  document.getElementById('openProfileBtn').onclick = () => openProfileEditor(user);
 }
 
 function openProfileEditor(user) {
-  const currentName = user.user_metadata?.display_name || user.email.split('@')[0]
-  const currentBio = user.user_metadata?.bio || ''
+  const currentName = user.user_metadata?.display_name || user.user_metadata?.full_name || user.email.split('@')[0];
+  const currentBio = user.user_metadata?.bio || '';
 
-  const root = document.getElementById('dashboardModalRoot')
+  const root = document.getElementById('dashboardModalRoot');
   root.innerHTML = `
     <div class="composer-backdrop">
       <form class="composer-panel" id="profileForm">
@@ -114,32 +125,32 @@ function openProfileEditor(user) {
         </div>
       </form>
     </div>
-  `
+  `;
 
-  document.getElementById('closeProfileModal').onclick = () => { root.innerHTML = '' }
+  document.getElementById('closeProfileModal').onclick = () => { root.innerHTML = ''; };
   document.getElementById('profileForm').onsubmit = async (e) => {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    const newName = formData.get('name').toString().trim()
-    const newBio = formData.get('bio').toString().trim()
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const newName = formData.get('name').toString().trim();
+    const newBio = formData.get('bio').toString().trim();
 
     const { error } = await dashboardClient.auth.updateUser({
-      data: { display_name: newName, bio: newBio }
-    })
+      data: { display_name: newName, full_name: newName, bio: newBio }
+    });
 
     if (error) {
-      notice(error.message)
+      notice(error.message);
     } else {
-      root.innerHTML = ''
-      notice('Profile updated successfully.')
-      loadDashboard()
+      root.innerHTML = '';
+      notice('Profile updated successfully.');
+      loadDashboard();
     }
-  }
+  };
 }
 
 function openDashboardComposer(user) {
-  const postTypes = ['Essay', 'Poem', 'Novel', 'Letter', 'Birthday special']
-  const root = document.getElementById('dashboardModalRoot')
+  const postTypes = ['Essay', 'Poem', 'Novel', 'Letter', 'Birthday special'];
+  const root = document.getElementById('dashboardModalRoot');
 
   root.innerHTML = `
     <div class="composer-backdrop">
@@ -156,7 +167,7 @@ function openDashboardComposer(user) {
         </label>
         <div class="composer-row">
           <label>Author Name
-            <input required name="author" value="${safe(user.user_metadata?.display_name || user.email.split('@')[0])}">
+            <input required name="author" value="${safe(user.user_metadata?.display_name || user.user_metadata?.full_name || user.email.split('@')[0])}">
           </label>
           <label>Format
             <select name="type">${postTypes.map((t) => `<option>${t}</option>`).join('')}</select>
@@ -179,17 +190,17 @@ function openDashboardComposer(user) {
         </div>
       </form>
     </div>
-  `
+  `;
 
-  document.getElementById('closeComposerModal').onclick = () => { root.innerHTML = '' }
+  document.getElementById('closeComposerModal').onclick = () => { root.innerHTML = ''; };
   document.getElementById('dashboardPublishForm').onsubmit = async (e) => {
-    e.preventDefault()
-    const form = new FormData(e.currentTarget)
-    const body = form.get('body').toString().trim()
-    const title = form.get('title').toString().trim()
-    const author = form.get('author').toString().trim()
-    const post_type = form.get('type')
-    const category = form.get('category')
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const body = form.get('body').toString().trim();
+    const title = form.get('title').toString().trim();
+    const author = form.get('author').toString().trim();
+    const post_type = form.get('type');
+    const category = form.get('category');
 
     const payload = {
       title,
@@ -200,30 +211,39 @@ function openDashboardComposer(user) {
       author,
       author_id: user.id,
       read_time: Math.max(1, Math.ceil(body.split(/\s+/).length / 180))
-    }
+    };
 
-    const { data, error } = await dashboardClient.from('posts').insert(payload).select().single()
+    const { data, error } = await dashboardClient.from('posts').insert(payload).select().single();
 
     if (error) {
-      notice(error.message)
-      return
+      notice(error.message);
+      return;
     }
 
-    root.innerHTML = ''
-    notice('Published successfully!')
-    
+    root.innerHTML = '';
+    notice('Published successfully!');
+
     // Trigger subscriber email notification edge function
     await dashboardClient.functions.invoke('notify-new-post', {
       body: { post: data, siteUrl: window.location.origin }
-    })
+    });
 
-    loadDashboard()
-  }
+    loadDashboard();
+  };
 }
 
+// Sign-out handler — back to main homepage
 document.getElementById('logoutButton').onclick = async () => {
-  await dashboardClient.auth.signOut()
-  window.location.href = 'index.html'
-}
+  await dashboardClient.auth.signOut();
+  window.location.href = 'index.html';
+};
 
-loadDashboard()
+// Listen for auth state changes (e.g. session expiry)
+dashboardClient.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_OUT') {
+    window.location.href = 'signin.html';
+  }
+});
+
+// Boot
+loadDashboard();

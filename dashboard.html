@@ -1,34 +1,48 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#1f2925">
-    <link rel="icon" href="icon.svg">
-    <link rel="stylesheet" href="styles.css">
-    <title>Writer Studio · Fieldnotes</title>
-  </head>
-  <body class="dashboard-page">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1f2925">
+  <link rel="icon" href="icon.svg">
+  <title>Writer Studio · Fieldnotes</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!-- Loading state shown while session is checked -->
+  <div id="dashboardLoading" class="auth-page">
+    <main class="auth-page-shell">
+      <a class="wordmark" href="index.html"><span>Field</span>notes<span class="wordmark-dot">.</span></a>
+      <p style="margin-top: 2rem; color: #6e756f;">Loading your studio…</p>
+    </main>
+  </div>
+
+  <!-- Main dashboard content (hidden until session confirmed) -->
+  <div id="dashboardContent" hidden>
+    <div id="noticeRoot"></div>
+
     <header class="site-header">
       <a class="wordmark" href="index.html"><span>Field</span>notes<span class="wordmark-dot">.</span></a>
       <nav class="main-nav">
         <a href="index.html">Home</a>
-        <a href="index.html#notes">Read</a>
-        <a href="index.html#newsletter">Letters</a>
       </nav>
-      <button class="account-trigger" id="logoutButton">Log out</button>
+      <div class="header-actions">
+        <button class="account-trigger" id="logoutButton" type="button">Sign out</button>
+      </div>
     </header>
 
-    <main class="dashboard-page-shell">
-      <div id="dashboardLoading" class="eyebrow">Loading your studio...</div>
-      <section id="dashboardContent" hidden></section>
+    <main class="dashboard-page">
+      <!-- dashboard.js renders into this element -->
+      <div class="app-shell" id="dashboardInner"></div>
     </main>
+  </div>
 
-    <div id="dashboardModalRoot"></div>
-    <div id="noticeRoot"></div>
+  <!-- Modal root for composer and profile editor -->
+  <div id="dashboardModalRoot"></div>
 
-    <script src="config.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="dashboard.js"></script>
-  </body>
+  <script src="dashboard.js"></script>
+</body>
 </html>
