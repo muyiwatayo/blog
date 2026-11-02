@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760">
+  <rect width="1200" height="760" fill="#e8e9df"/>
+  <path d="M0 546c200-104 414-94 621-8 197 82 390 86 579-6v228H0z" fill="#bbc9b8"/>
+  <rect x="290" y="111" width="486" height="529" fill="#f6f2e7" transform="rotate(4 533 375)"/>
+  <path d="M355 230h320M360 283h340M365 336h295M368 389h329M373 442h248" stroke="#a0aaa0" stroke-width="7"/>
+  <path d="M875 455c97-116 180-46 105 13 119-13 100 79 6 76 72 92-10 142-74 59-42 107-139 62-85-27-110 39-148-44-44-78-63-93 23-158 92-65" fill="#a95f49"/>
+  <path d="M882 537c22-19 38-34 61-44" fill="none" stroke="#f3f5ef" stroke-width="11" stroke-linecap="round"/>
+  <text x="64" y="90" fill="#506259" font-family="monospace" font-size="24" letter-spacing="5">NOTES LEFT OPEN</text>
+</svg>

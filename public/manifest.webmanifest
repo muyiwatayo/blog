@@ -1,0 +1,33 @@
+{
+  "name": "Fieldnotes",
+  "short_name": "Fieldnotes",
+  "id": "/",
+  "scope": "/",
+  "description": "A quiet home for essays, poems, stories, letters, and birthday specials.",
+  "start_url": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#f7f5f3",
+  "theme_color": "#a83245",
+  "categories": ["books", "education", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

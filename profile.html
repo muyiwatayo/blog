@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f3ed">
+  <link rel="icon" href="icon.svg">
+  <title>Writer · Fieldnotes</title>
+  <meta name="description" content="Writer profile on Fieldnotes.">
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <div id="profileRoot">
+    <!-- Shown while loading -->
+    <div class="auth-page">
+      <main class="auth-page-shell" style="text-align:center; padding-top:80px;">
+        <a class="wordmark" href="index.html"><span>Field</span>notes<span class="wordmark-dot">.</span></a>
+        <p style="margin-top:40px; color:#6e756f; font:11px 'DM Mono',monospace;">Loading profile…</p>
+      </main>
+    </div>
+  </div>
+
+  <div id="noticeRoot"></div>
+  <div id="modalRoot"></div>
+
+  <script>
+    const supabaseUrl  = window.ENV?.SUPABASE_URL  || 'https://tyicduuijghugeztrmmj.supabase.co';
+    const supabaseKey  = window.ENV?.SUPABASE_ANON_KEY || 'sb_publishable_xYH_3Mnn4rcfnKym7RVyMw_X2FASqON';
+    const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    const params    = new URLSearchParams(location.search);
+    const profileId = params.get('id');
+    let currentUser = null;
+
+    /* ── helpers ─────────────────────────────────────────── */
+    function esc(v = '') {
+      return String(v).replace(/[&<>"']/g, c =>
+        ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    }
+    function notice(text) {
+      document.getElementById('noticeRoot').innerHTML =
+        `<div class="data-notice">${esc(text)}<button onclick="document.getElementById('noticeRoot').innerHTML=''">×</button></div>`;
+    }
+    function badgeColor(id = '') {
+      const palette = ['#c65d43','#4a7c6f','#7b6fa0','#c4883a','#3a6ea5','#7a9e3a'];
+      let h = 0;
+      for (let i = 0; i < id.length; i++) h = id.charCodeAt(i) + ((h << 5) - h);
+      return palette[Math.abs(h) % palette.length];
+    }
+
+    /* ── main ────────────────────────────────────────────── */
+    async function init() {
+      if (!profileId) {
+        document.getElementById('profileRoot').innerHTML =
+          `<div style="padding:80px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;">
+             <p>No profile specified.</p><br>
+             <a href="index.html" style="color:#c65d43;">← Go home</a>
+           </div>`;
+        return;
+      }
+
+      const { data: { session } } = await sb.auth.getSession();
+      currentUser = session?.user || null;
+
+      const [profRes, postsRes, followersRes, followingRes, isFolRes] = await Promise.all([
+        sb.from('profiles').select('*').eq('id', profileId).single(),
+        sb.from('posts').select('*').eq('author_id', profileId).order('created_at', { ascending: false }),
+        sb.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', profileId),
+        sb.from('follows').select('following_id', { count: 'exact', head: true }).eq('follower_id', profileId),
+        currentUser
+          ? sb.from('follows').select('follower_id').eq('follower_id', currentUser.id).eq('following_id', profileId).maybeSingle()
+          : Promise.resolve({ data: null })
+      ]);
+
+      const profile        = profRes.data;
+      const posts          = postsRes.data || [];
+      const followersCount = followersRes.count || 0;
+      const followingCount = followingRes.count || 0;
+      let   isFollowing    = Boolean(isFolRes.data);
+      const isOwn          = currentUser?.id === profileId;
+
+      const name     = profile?.display_name || 'Writer';
+      const bio      = profile?.bio      || '';
+      const website  = profile?.website  || '';
+      const initials = name.split(/\s+/).map(p => p[0]).join('').slice(0, 2).toUpperCase();
+      const color    = badgeColor(profileId);
+
+      document.title = `${name} · Fieldnotes`;
+
+      document.getElementById('profileRoot').innerHTML = `
+        <div class="app-shell">
+
+          <header class="site-header">
+            <a class="wordmark" href="index.html"><span>Field</span>notes<span class="wordmark-dot">.</span></a>
+            <nav class="main-nav">
+              <a href="index.html">Home</a>
+              <a href="index.html#notes">Read</a>
+              <a href="index.html#writers">Writers</a>
+            </nav>
+            <div class="header-actions">
+              ${currentUser
+                ? `<a class="account-trigger" href="dashboard.html">Writer studio</a>`
+                : `<a class="account-trigger" href="signin.html">Sign in</a>`
+              }
+            </div>
+          </header>
+
+          <main>
+            <!-- ── Profile hero ───────────────────────────── -->
+            <section class="profile-hero">
+              <div class="profile-hero-inner">
+                <div class="profile-avatar-xl" style="background:${color}">${esc(initials)}</div>
+
+                <div class="profile-hero-copy">
+                  <p class="eyebrow">Writer on Fieldnotes</p>
+                  <h1 class="profile-name">${esc(name)}</h1>
+                  ${bio ? `<p class="profile-bio">${esc(bio)}</p>` : ''}
+                  ${website
+                    ? `<a class="profile-website" href="${esc(website)}" target="_blank" rel="noopener noreferrer">
+                         ${esc(website.replace(/^https?:\/\//, ''))} ↗
+                       </a>`
+                    : ''
+                  }
+
+                  <div class="profile-stats-row">
+                    <div class="profile-stat-pill">
+                      <strong>${posts.length}</strong>
+                      <span>Notes</span>
+                    </div>
+                    <div class="profile-stat-pill">
+                      <strong id="followersCount">${followersCount}</strong>
+                      <span>Followers</span>
+                    </div>
+                    <div class="profile-stat-pill">
+                      <strong>${followingCount}</strong>
+                      <span>Following</span>
+                    </div>
+                  </div>
+
+                  <div class="profile-cta-row">
+                    ${isOwn
+                      ? `<button class="follow-btn follow-btn-edit" id="editProfileBtn">Edit profile</button>
+                         <a class="follow-btn follow-btn-secondary" href="dashboard.html">Writer studio →</a>`
+                      : currentUser
+                        ? `<button class="follow-btn ${isFollowing ? 'follow-btn-following' : 'follow-btn-follow'}" id="followBtn">
+                             ${isFollowing ? 'Following ✓' : '+ Follow'}
+                           </button>`
+                        : `<a class="follow-btn follow-btn-follow" href="signin.html">Sign in to follow</a>`
+                    }
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- ── Posts library ──────────────────────────── -->
+            <section class="profile-posts-section">
+              <div class="profile-posts-heading">
+                <p class="eyebrow">Published notes</p>
+                <h2>${esc(name)}'s library.</h2>
+              </div>
+
+              ${posts.length
+                ? `<div class="profile-posts-grid">
+                    ${posts.map(post => `
+                      <article class="profile-post-card" data-post-id="${esc(post.id)}">
+                        <div class="profile-post-cover ${post.image ? '' : 'profile-post-cover--plain'}"
+                             ${post.image ? `style="background-image:url('${esc(post.image)}')"` : `style="background:${badgeColor(post.id)}22"`}>
+                          <span class="post-category">${esc(post.post_type || 'Essay')}</span>
+                        </div>
+                        <div class="profile-post-body">
+                          <h3>${esc(post.title)}</h3>
+                          <p>${esc(post.excerpt)}</p>
+                          <small>${new Date(post.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})} · ${post.read_time || 1} min read</small>
+                        </div>
+                      </article>
+                    `).join('')}
+                   </div>`
+                : `<p class="empty-state">${esc(name)} hasn't published anything yet.</p>`
+              }
+            </section>
+          </main>
+
+          <footer class="site-footer">
+            <a class="wordmark" href="index.html"><span>Field</span>notes<span class="wordmark-dot">.</span></a>
+            <span>Made for curious minds, 2026</span>
+            <div><a href="index.html#notes">Archive</a><a href="index.html#newsletter">Contact</a></div>
+          </footer>
+        </div>
+      `;
+
+      /* ── follow / unfollow ──────────────────────────────── */
+      const followBtn = document.getElementById('followBtn');
+      if (followBtn) {
+        followBtn.addEventListener('click', async () => {
+          if (!currentUser) return (window.location.href = 'signin.html');
+          followBtn.disabled = true;
+          const counter = document.getElementById('followersCount');
+
+          if (isFollowing) {
+            const { error } = await sb.from('follows')
+              .delete()
+              .eq('follower_id', currentUser.id)
+              .eq('following_id', profileId);
+            if (!error) {
+              isFollowing = false;
+              followBtn.textContent = '+ Follow';
+              followBtn.className = 'follow-btn follow-btn-follow';
+              if (counter) counter.textContent = Math.max(0, parseInt(counter.textContent) - 1);
+            }
+          } else {
+            const { error } = await sb.from('follows')
+              .insert({ follower_id: currentUser.id, following_id: profileId });
+            if (!error) {
+              isFollowing = true;
+              followBtn.textContent = 'Following ✓';
+              followBtn.className = 'follow-btn follow-btn-following';
+              if (counter) counter.textContent = parseInt(counter.textContent) + 1;
+            }
+          }
+          followBtn.disabled = false;
+        });
+      }
+
+      /* ── edit profile (own profile) ─────────────────────── */
+      const editBtn = document.getElementById('editProfileBtn');
+      if (editBtn) editBtn.addEventListener('click', () => openEditModal(profile));
+
+      /* ── post cards open reader ─────────────────────────── */
+      document.querySelectorAll('.profile-post-card').forEach(card => {
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', () => {
+          const post = posts.find(p => p.id === card.dataset.postId);
+          if (post) openReader(post);
+        });
+      });
+    }
+
+    /* ── reader modal ───────────────────────────────────────── */
+    function openReader(post) {
+      document.getElementById('modalRoot').innerHTML = `
+        <div class="reader-backdrop" id="readerBg">
+          <article class="reader-panel">
+            <div class="reader-top">
+              <span class="post-meta">${esc(post.post_type || 'Essay')} <span></span> ${esc(post.category || '')}</span>
+              <button class="close-button" id="closeReader">×</button>
+            </div>
+            ${post.image
+              ? `<div class="reader-share-card" style="background-image:url('${esc(post.image)}')">
+                   <div><span>${esc(post.post_type||'Essay')} / Fieldnotes</span><strong>${esc(post.title)}</strong><small>By ${esc(post.author)}</small></div>
+                 </div>`
+              : ''
+            }
+            <h2>${esc(post.title)}</h2>
+            <p class="reader-byline">By ${esc(post.author)} · ${new Date(post.created_at).toLocaleDateString()}</p>
+            <div class="reader-body">
+              ${esc(post.body || post.excerpt).split('\n\n').map(p => `<p>${p}</p>`).join('')}
+            </div>
+          </article>
+        </div>
+      `;
+      document.getElementById('closeReader').onclick = closeModal;
+      document.getElementById('readerBg').onclick = e => { if (e.target === e.currentTarget) closeModal(); };
+    }
+    function closeModal() { document.getElementById('modalRoot').innerHTML = ''; }
+
+    /* ── edit profile modal ─────────────────────────────────── */
+    function openEditModal(profile) {
+      const root = document.getElementById('modalRoot');
+      root.innerHTML = `
+        <div class="composer-backdrop">
+          <form class="composer-panel" id="editProfileForm">
+            <div class="composer-heading">
+              <div>
+                <p class="eyebrow">Your identity</p>
+                <h2>Edit<br><em>profile.</em></h2>
+              </div>
+              <button type="button" class="close-button" id="closeEdit">×</button>
+            </div>
+            <label>Display Name
+              <input required name="display_name" value="${esc(profile?.display_name || '')}" placeholder="Your name">
+            </label>
+            <label>Short Bio
+              <textarea name="bio" rows="3" placeholder="Tell readers a little about yourself…">${esc(profile?.bio || '')}</textarea>
+            </label>
+            <label>Website
+              <input name="website" type="url" value="${esc(profile?.website || '')}" placeholder="https://yoursite.com">
+            </label>
+            <p id="editMsg" class="form-message"></p>
+            <div class="composer-footer">
+              <span>Your profile is publicly visible.</span>
+              <button class="publish-button" type="submit">Save profile <span>↗</span></button>
+            </div>
+          </form>
+        </div>
+      `;
+      document.getElementById('closeEdit').onclick = () => { root.innerHTML = ''; };
+      document.getElementById('editProfileForm').onsubmit = async e => {
+        e.preventDefault();
+        const fd  = new FormData(e.currentTarget);
+        const msg = document.getElementById('editMsg');
+        msg.textContent = 'Saving…';
+        const newName    = fd.get('display_name').trim();
+        const newBio     = fd.get('bio').trim();
+        const newWebsite = fd.get('website').trim();
+
+        const [profRes, authRes] = await Promise.all([
+          sb.from('profiles').upsert({
+            id: currentUser.id,
+            display_name: newName,
+            bio: newBio,
+            website: newWebsite,
+            updated_at: new Date().toISOString()
+          }),
+          sb.auth.updateUser({ data: { display_name: newName, full_name: newName, bio: newBio } })
+        ]);
+
+        if (profRes.error || authRes.error) {
+          msg.textContent = (profRes.error || authRes.error).message;
+        } else {
+          root.innerHTML = '';
+          notice('Profile saved!');
+          setTimeout(() => location.reload(), 700);
+        }
+      };
+    }
+
+    init();
+  </script>
+</body>
+</html>

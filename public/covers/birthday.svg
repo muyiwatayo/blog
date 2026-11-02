@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760">
+  <rect width="1200" height="760" fill="#e7dfd1"/>
+  <circle cx="930" cy="170" r="220" fill="#d6b38d"/>
+  <path d="M0 555c211-73 386-87 567-10 221 95 429 81 633-29v244H0z" fill="#a5b3a1"/>
+  <path d="M373 400h440v220H373z" fill="#f3f0e5"/>
+  <path d="M331 400l262-191 262 191z" fill="#a95f49"/>
+  <path d="M383 352l210-152 210 152z" fill="#c57d60"/>
+  <circle cx="592" cy="145" r="24" fill="#b47e63"/>
+  <path d="M592 170v67" stroke="#718d7c" stroke-width="9"/>
+  <path d="M570 142c-34-41 7-64 22-24 15-40 56-17 22 24" fill="#b86a55"/>
+  <circle cx="470" cy="466" r="14" fill="#d3ac74"/>
+  <circle cx="538" cy="518" r="14" fill="#a3b899"/>
+  <circle cx="626" cy="463" r="14" fill="#d3ac74"/>
+  <circle cx="705" cy="523" r="14" fill="#a3b899"/>
+  <text x="64" y="90" fill="#5b594d" font-family="monospace" font-size="24" letter-spacing="5">A BIRTHDAY LETTER</text>
+</svg>

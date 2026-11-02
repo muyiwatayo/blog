@@ -6,7 +6,15 @@
 # Dependencies and generated output
 node_modules/
 dist/
+.next/
+out/
+build/
+coverage/
+next-env.d.ts
 
 # Local tooling
 .vscode/
 .DS_Store
+
+# TypeScript build metadata
+*.tsbuildinfo
