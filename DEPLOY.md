@@ -27,6 +27,25 @@ the author publishes them. Update the deployed
 domain under Supabase **Authentication → URL Configuration** and allow it in
 your Google OAuth redirect configuration.
 
+## Authentication email delivery
+
+To send account confirmation and password-reset emails through Resend, first
+verify a sending domain in Resend and add the DNS records Resend provides. In
+Supabase, open **Authentication → Emails → SMTP Settings**, enable custom SMTP,
+and enter:
+
+- Host: `smtp.resend.com`
+- Port: `465` for SSL or `587` for STARTTLS
+- Username: `resend`
+- Password: your Resend API key
+- Sender email: an address on your verified domain
+- Sender name: `Fieldnotes`
+
+Save and test by requesting a new confirmation email. Keep the Resend key in
+Supabase's SMTP password field; do not put it in frontend code, a `NEXT_PUBLIC_`
+variable, or a committed file. If the monthly digest is enabled, configure its
+separate Edge Function secret as described below.
+
 The schema provisions mutual friend requests. Signed-in writers can discover
 public profiles, send and respond to requests, and remove friendships. Published
 notes remain public on writer pages; friendships do not hide or unlock posts.

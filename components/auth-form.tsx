@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -14,6 +14,8 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const emailInputRef = useRef<HTMLInputElement>(null);
   const [confirmationEmail, setConfirmationEmail] = useState("");
   const [resendingConfirmation, setResendingConfirmation] = useState(false);
 
@@ -24,7 +26,7 @@ export function AuthForm({ mode }: AuthFormProps) {
     setError(false);
     setConfirmationEmail("");
     const form = new FormData(event.currentTarget);
-    const email = String(form.get("email") || "").trim().toLowerCase();
+    const submittedEmail = String(form.get("email") || "").trim().toLowerCase();
     const password = String(form.get("password") || "");
     const name = String(form.get("name") || "").trim();
 
@@ -32,7 +34,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       const supabase = createClient();
       if (signingUp) {
         const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
+          email: submittedEmail,
           password,
           options: {
             data: { display_name: name, full_name: name },
@@ -45,11 +47,12 @@ export function AuthForm({ mode }: AuthFormProps) {
           router.refresh();
           return;
         }
-        setConfirmationEmail(email);
+        setEmail(submittedEmail);
+        setConfirmationEmail(submittedEmail);
         setMessage("Check your email to confirm your account, then sign in.");
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
+          email: submittedEmail,
           password,
         });
         if (signInError) {
@@ -57,7 +60,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             signInError.code === "email_not_confirmed" ||
             signInError.message.toLowerCase().includes("email not confirmed")
           ) {
-            setConfirmationEmail(email);
+            setConfirmationEmail(submittedEmail);
           }
           throw signInError;
         }
@@ -75,14 +78,16 @@ export function AuthForm({ mode }: AuthFormProps) {
   }
 
   async function resendConfirmation() {
-    if (!confirmationEmail) return;
+    if (!emailInputRef.current?.reportValidity()) return;
+    const targetEmail = email.trim().toLowerCase();
+    if (!targetEmail) return;
     setResendingConfirmation(true);
     setMessage("");
     setError(false);
     try {
       const { error: resendError } = await createClient().auth.resend({
         type: "signup",
-        email: confirmationEmail,
+        email: targetEmail,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
         },
@@ -187,6 +192,9 @@ export function AuthForm({ mode }: AuthFormProps) {
                 type="email"
                 name="email"
                 autoComplete="email"
+                value={email}
+                ref={emailInputRef}
+                onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
               />
             </label>
@@ -221,12 +229,12 @@ export function AuthForm({ mode }: AuthFormProps) {
               {!busy ? <span aria-hidden="true">↗</span> : null}
             </button>
           </form>
-          {confirmationEmail ? (
+          {!signingUp || confirmationEmail ? (
             <button
               className="google-button"
               type="button"
               onClick={() => void resendConfirmation()}
-              disabled={busy || resendingConfirmation}
+              disabled={busy || resendingConfirmation || !email.trim()}
             >
               {resendingConfirmation ? "Sending confirmation link…" : "Resend confirmation link"}
             </button>
