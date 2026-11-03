@@ -44,7 +44,22 @@ export function SiteFooter() {
       <div className="footer-main">
         <div className="footer-brand">
           <Link className="wordmark" href="/" aria-label="Fieldnotes home">
-            <span>Field</span>notes<span className="wordmark-dot">.</span>
+            <svg
+              className="wordmark-home-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="m3.75 10.5 8.25-7 8.25 7v9.75h-6v-6h-4.5v6h-6V10.5Z"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span className="wordmark-label">
+              <span>Field</span>notes<span className="wordmark-dot">.</span>
+            </span>
           </Link>
           <p>For the words you want to keep, and the people you want to celebrate.</p>
         </div>

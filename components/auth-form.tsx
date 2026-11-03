@@ -14,12 +14,15 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [confirmationEmail, setConfirmationEmail] = useState("");
+  const [resendingConfirmation, setResendingConfirmation] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setMessage("");
     setError(false);
+    setConfirmationEmail("");
     const form = new FormData(event.currentTarget);
     const email = String(form.get("email") || "").trim().toLowerCase();
     const password = String(form.get("password") || "");
@@ -42,13 +45,22 @@ export function AuthForm({ mode }: AuthFormProps) {
           router.refresh();
           return;
         }
+        setConfirmationEmail(email);
         setMessage("Check your email to confirm your account, then sign in.");
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        if (signInError) throw signInError;
+        if (signInError) {
+          if (
+            signInError.code === "email_not_confirmed" ||
+            signInError.message.toLowerCase().includes("email not confirmed")
+          ) {
+            setConfirmationEmail(email);
+          }
+          throw signInError;
+        }
         router.replace("/dashboard");
         router.refresh();
       }
@@ -59,6 +71,33 @@ export function AuthForm({ mode }: AuthFormProps) {
       );
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function resendConfirmation() {
+    if (!confirmationEmail) return;
+    setResendingConfirmation(true);
+    setMessage("");
+    setError(false);
+    try {
+      const { error: resendError } = await createClient().auth.resend({
+        type: "signup",
+        email: confirmationEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+        },
+      });
+      if (resendError) throw resendError;
+      setMessage("A new confirmation link has been sent. Check your inbox and spam folder.");
+    } catch (resendError) {
+      setError(true);
+      setMessage(
+        resendError instanceof Error
+          ? resendError.message
+          : "A new confirmation link could not be sent. Please try again.",
+      );
+    } finally {
+      setResendingConfirmation(false);
     }
   }
 
@@ -88,8 +127,23 @@ export function AuthForm({ mode }: AuthFormProps) {
   return (
     <div className="app-shell auth-page">
       <main className="auth-page-shell">
-        <Link className="wordmark" href="/">
-          <span>Field</span>notes<span className="wordmark-dot">.</span>
+        <Link className="wordmark" href="/" aria-label="Fieldnotes home">
+          <svg
+            className="wordmark-home-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m3.75 10.5 8.25-7 8.25 7v9.75h-6v-6h-4.5v6h-6V10.5Z"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className="wordmark-label">
+            <span>Field</span>notes<span className="wordmark-dot">.</span>
+          </span>
         </Link>
         <section className="auth-card">
           <p className="eyebrow">{signingUp ? "Join Fieldnotes" : "Welcome back"}</p>
@@ -167,12 +221,40 @@ export function AuthForm({ mode }: AuthFormProps) {
               {!busy ? <span aria-hidden="true">↗</span> : null}
             </button>
           </form>
+          {confirmationEmail ? (
+            <button
+              className="google-button"
+              type="button"
+              onClick={() => void resendConfirmation()}
+              disabled={busy || resendingConfirmation}
+            >
+              {resendingConfirmation ? "Sending confirmation link…" : "Resend confirmation link"}
+            </button>
+          ) : null}
           <button
             className="google-button"
             type="button"
             onClick={() => void continueWithGoogle()}
             disabled={busy}
           >
+            <svg className="google-mark" viewBox="0 0 48 48" aria-hidden="true">
+              <path
+                fill="#4285F4"
+                d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11c-.5 2.5-2 4.7-4.2 6.1v5.1h6.8c4-3.7 6-8.8 6-14.9Z"
+              />
+              <path
+                fill="#34A853"
+                d="M24 44c5.5 0 10.1-1.8 13.5-4.8l-6.8-5.1c-1.8 1.2-4 1.9-6.7 1.9-5.2 0-9.6-3.5-11.2-8.2H5.8v5.2C9.2 39.6 16 44 24 44Z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M12.8 27.8a12 12 0 0 1 0-7.6V15H5.8a20 20 0 0 0 0 18l7-5.2Z"
+              />
+              <path
+                fill="#EA4335"
+                d="M24 12c3 0 5.7 1 7.8 3.1l5.8-5.8C34.1 5.9 29.5 4 24 4 16 4 9.2 8.4 5.8 15l7 5.2C14.4 15.5 18.8 12 24 12Z"
+              />
+            </svg>
             Continue with Google
           </button>
           <p className="auth-switch">

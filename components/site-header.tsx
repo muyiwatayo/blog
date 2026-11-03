@@ -104,7 +104,22 @@ export function SiteHeader() {
     <>
       <header className="site-header">
         <Link className="wordmark" href="/" aria-label="Fieldnotes home" onClick={closeMenu}>
-          <span>Field</span>notes<span className="wordmark-dot">.</span>
+          <svg
+            className="wordmark-home-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m3.75 10.5 8.25-7 8.25 7v9.75h-6v-6h-4.5v6h-6V10.5Z"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className="wordmark-label">
+            <span>Field</span>notes<span className="wordmark-dot">.</span>
+          </span>
         </Link>
         <span className="site-header-caption">Independent notes for a noisy world</span>
         <div className="header-actions">
@@ -174,8 +189,8 @@ export function SiteHeader() {
                 <p className="menu-install-help" role="status">
                   {/iphone|ipad|ipod/i.test(navigator.userAgent) ||
                   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-                    ? "In Safari, tap Share, then Add to Home Screen."
-                    : "Open your browser menu and choose Install Fieldnotes or Add to home screen."}
+                    ? "On iPhone or iPad, open Fieldnotes in Safari and use the Share menu to install the app."
+                    : "Open your browser menu and choose Install Fieldnotes. If that option is unavailable, try Chrome or Edge."}
                 </p>
               ) : null}
               <SocialLinks placement="menu" />
