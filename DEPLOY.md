@@ -46,6 +46,12 @@ Supabase's SMTP password field; do not put it in frontend code, a `NEXT_PUBLIC_`
 variable, or a committed file. If the monthly digest is enabled, configure its
 separate Edge Function secret as described below.
 
+To let users enter the studio immediately after signing up, open **Authentication
+→ Sign In / Providers → Email**, turn off **Confirm email**, and save. New email
+signups will then receive a session without clicking a confirmation link. This
+means Supabase does not verify that the user owns the email address. The app
+does not provide an email-confirmation resend button.
+
 The schema provisions mutual friend requests. Signed-in writers can discover
 public profiles, send and respond to requests, and remove friendships. Published
 notes remain public on writer pages; friendships do not hide or unlock posts.
