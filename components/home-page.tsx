@@ -238,60 +238,45 @@ export function HomePage() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell home-shell">
       <SiteHeader />
       <main id="top">
         <section className="hero-section">
           <div className="hero-copy">
-            <p className="eyebrow">Independent notes for a noisy world</p>
-            <h1>
-              Keep a little
-              <br />
-              <em>room</em> for wonder.
-            </h1>
+            <p className="eyebrow">A publication made by its readers</p>
+            <h1>A quiet place for words that matter.</h1>
             <p className="hero-intro">
-              A slow publication for essays, poems, stories, letters and the people
-              you want to celebrate.
+              Read something thoughtful, meet its writer, or publish a story of
+              your own. There is room here for essays, poems, letters and birthday
+              tributes.
             </p>
             <div className="hero-actions">
-              <a className="text-link" href="#notes">
-                Explore the notes <span aria-hidden="true">↘</span>
+              <a className="home-primary-link" href="#notes">
+                Browse the writing
               </a>
-              <Link className="text-link write-link" href="/sign-up">
-                Share yours <span aria-hidden="true">+</span>
+              <Link className="home-secondary-link" href="/sign-up">
+                Write a story
               </Link>
             </div>
           </div>
-          <div className="hero-art" aria-label="A quiet writing desk with a notebook and tea">
-            <div className="sun-disc" />
-            <div className="paper-sheet">
-              <span>
-                FIELD
-                <br />
-                NOTES
-              </span>
-              <small>
-                WORDS
-                <br />
-                TO KEEP
-              </small>
-            </div>
-            <div className="pencil" />
-            <div className="tea-cup">
-              <div className="tea" />
-            </div>
-            <span className="art-caption">
-              The practice of noticing
-              <br />
-              is still a practice.
-            </span>
-          </div>
+          <aside className="hero-note">
+            <p className="eyebrow">What you will find</p>
+            <p>
+              Personal writing, carefully shared. Read at your own pace and save
+              the pieces you want to return to.
+            </p>
+            <ul aria-label="Writing on Fieldnotes">
+              <li>Essays and stories</li>
+              <li>Poems and letters</li>
+              <li>Birthday tributes</li>
+            </ul>
+          </aside>
         </section>
 
         <section className="featured-section" id="notes">
           <div className="section-heading">
-            <p className="eyebrow">Start here</p>
-            <span>{loadError ? "Sample note · offline preview" : "Featured note"}</span>
+            <p className="eyebrow">A note to begin with</p>
+            <span>{loadError ? "Sample writing · offline preview" : "Recently published"}</span>
           </div>
           {loading ? (
             <div className="content-state" role="status">
@@ -362,8 +347,8 @@ export function HomePage() {
         <section className="library-section">
           <div className="library-top">
             <div>
-              <p className="eyebrow">The library</p>
-              <h2>Notes to return to.</h2>
+              <p className="eyebrow">From the community</p>
+              <h2>Browse the latest writing</h2>
             </div>
             {loadError ? (
               <p className="connection-notice" role="status">
@@ -425,28 +410,24 @@ export function HomePage() {
             ✳
           </div>
           <div>
-            <p className="eyebrow">A note from the editor</p>
-            <h2>
-              There is still time
-              <br />
-              to pay attention.
-            </h2>
+            <p className="eyebrow">About Fieldnotes</p>
+            <h2>A little more room to think.</h2>
           </div>
           <p>
-            Fieldnotes is a reader-supported publication for considered thoughts
-            and useful questions. No hot takes. No growth hacks. Just a place to
-            think in public, together.
+            Fieldnotes is a community publication for personal essays, poems,
+            stories and notes worth keeping. Read what others have written, or
+            make a quiet space for your own words.
           </p>
         </section>
 
         <section className="writers-section" id="writers">
           <div className="writers-section-head">
             <div>
-              <p className="eyebrow">The community</p>
-              <h2>Meet the writers.</h2>
+              <p className="eyebrow">People behind the pages</p>
+              <h2>Meet the writers</h2>
             </div>
             <Link className="text-link" href="/sign-up">
-              Become a writer <span aria-hidden="true">↗</span>
+              Join and start writing <span aria-hidden="true">↗</span>
             </Link>
           </div>
           {loading ? (
@@ -500,11 +481,7 @@ export function HomePage() {
         <section className="newsletter-section" id="newsletter">
           <div>
             <p className="eyebrow">The monthly letter</p>
-            <h2>
-              A thoughtful note,
-              <br />
-              <em>once a month.</em>
-            </h2>
+            <h2>A short note from Fieldnotes, once a month.</h2>
           </div>
           <form onSubmit={subscribe}>
             <label htmlFor="newsletter-email">Your email address</label>
