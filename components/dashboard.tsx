@@ -10,7 +10,6 @@ import {
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
-import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import {
   FriendRequestButton,
@@ -39,6 +38,50 @@ type DashboardData = {
   requestProfiles: Profile[];
 };
 
+type DashboardTab = "published" | "drafts";
+
+async function prepareCoverUpload(file: File): Promise<File> {
+  if (file.size <= 1024 * 1024 || typeof createImageBitmap !== "function") return file;
+
+  const image = await createImageBitmap(file);
+  const scale = Math.min(1, 2000 / Math.max(image.width, image.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.width * scale));
+  canvas.height = Math.max(1, Math.round(image.height * scale));
+  const context = canvas.getContext("2d");
+  if (!context) {
+    image.close();
+    throw new Error("Your browser could not prepare this image. Try a smaller JPEG, PNG or WebP.");
+  }
+
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  image.close();
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/webp", 0.84),
+  );
+  if (!blob) throw new Error("Your browser could not prepare this image. Try another image.");
+  if (blob.type !== "image/webp") return file;
+  if (blob.size > MAX_IMAGE_BYTES) {
+    throw new Error("This image is still larger than 5 MB after compression. Choose a smaller image.");
+  }
+
+  const name = file.name.replace(/\.[^.]+$/, "") || "cover";
+  return new File([blob], `${name}.webp`, {
+    type: "image/webp",
+    lastModified: file.lastModified,
+  });
+}
+
+function getDashboardErrorMessage(error: unknown, fallback: string): string {
+  if (
+    error instanceof TypeError ||
+    (error instanceof Error && /failed to fetch|network request failed/i.test(error.message))
+  ) {
+    return "Could not reach Supabase. Check your connection and confirm this project has the covers and draft-covers Storage buckets configured.";
+  }
+  return error instanceof Error ? error.message : fallback;
+}
+
 const initialForm = {
   title: "",
   author: "",
@@ -60,6 +103,8 @@ export function Dashboard() {
   const [previewUrl, setPreviewUrl] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<DashboardTab>("published");
   const { savedCount } = useSavedNotes();
 
   useEffect(() => {
@@ -212,21 +257,27 @@ export function Dashboard() {
       let image: string | null = null;
       let privateImagePath: string | null = null;
       if (cover) {
-        const extension = cover.type === "image/jpeg" ? "jpg" : cover.type.split("/")[1];
-        uploadedPath = `${data.user.id}/${crypto.randomUUID()}.${extension}`;
+        const uploadFile = await prepareCoverUpload(cover);
+        const extension = uploadFile.type === "image/jpeg" ? "jpg" : uploadFile.type.split("/")[1];
+        const imagePath = `${data.user.id}/${crypto.randomUUID()}.${extension}`;
         uploadedBucket = form.status === "draft" ? "draft-covers" : "covers";
         const { error: uploadError } = await supabase.storage
           .from(uploadedBucket)
-          .upload(uploadedPath, cover, {
-            contentType: cover.type,
+          .upload(imagePath, uploadFile, {
+            contentType: uploadFile.type,
             cacheControl: "3600",
             upsert: false,
           });
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          throw new Error(
+            `Image upload failed: ${uploadError.message}. Check that the signed-in account can upload to its own Storage folder and that the storage policies are installed.`,
+          );
+        }
+        uploadedPath = imagePath;
         if (form.status === "draft") {
-          privateImagePath = uploadedPath;
+          privateImagePath = imagePath;
         } else {
-          image = supabase.storage.from("covers").getPublicUrl(uploadedPath).data.publicUrl;
+          image = supabase.storage.from("covers").getPublicUrl(imagePath).data.publicUrl;
         }
       }
 
@@ -272,6 +323,7 @@ export function Dashboard() {
       setForm(initialForm);
       setCover(null);
       setPreviewUrl("");
+      setComposerOpen(false);
       formElement.reset();
       setNotice(
         isPublished
@@ -289,7 +341,7 @@ export function Dashboard() {
           console.error("Could not remove the unused cover image.", removeError);
         }
       }
-      setNotice(error instanceof Error ? error.message : "Your note could not be saved.");
+      setNotice(getDashboardErrorMessage(error, "Your note could not be saved."));
     } finally {
       setPublishing(false);
     }
@@ -309,16 +361,34 @@ export function Dashboard() {
           .from("draft-covers")
           .download(post.private_image_path);
         if (downloadError) throw downloadError;
-        publicImagePath = post.private_image_path;
+        const draftPath = post.private_image_path;
+        const mimeTypeByExtension: Record<string, (typeof IMAGE_MIME_TYPES)[number]> = {
+          jpg: "image/jpeg",
+          jpeg: "image/jpeg",
+          png: "image/png",
+          webp: "image/webp",
+        };
+        const extension = draftPath.split(".").pop()?.toLowerCase() || "";
+        const contentType =
+          IMAGE_MIME_TYPES.find((type) => type === coverFile.type) ||
+          mimeTypeByExtension[extension];
+        if (!contentType) {
+          throw new Error("This draft cover has an unsupported file type. Replace it with a JPEG, PNG or WebP image.");
+        }
         const { error: uploadError } = await supabase.storage
           .from("covers")
-          .upload(publicImagePath, coverFile, {
-            contentType: coverFile.type || "application/octet-stream",
+          .upload(draftPath, coverFile, {
+            contentType,
             cacheControl: "3600",
-            upsert: true,
+            upsert: false,
           });
-        if (uploadError) throw uploadError;
-        image = supabase.storage.from("covers").getPublicUrl(publicImagePath).data.publicUrl;
+        if (uploadError) {
+          throw new Error(
+            `Draft cover upload failed: ${uploadError.message}. Check the Storage upload policies and bucket settings.`,
+          );
+        }
+        publicImagePath = draftPath;
+        image = supabase.storage.from("covers").getPublicUrl(draftPath).data.publicUrl;
       }
 
       const { data: updatedPost, error: updateError } = await supabase
@@ -363,7 +433,7 @@ export function Dashboard() {
           console.error("Could not remove the unpublished cover image.", cleanupError);
         }
       }
-      setNotice(error instanceof Error ? error.message : "The draft could not be published.");
+      setNotice(getDashboardErrorMessage(error, "The draft could not be published."));
     } finally {
       setPublishing(false);
     }
@@ -488,7 +558,7 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="app-shell">
+      <div className="app-shell dashboard-app-shell">
         <SiteHeader />
         <main className="dashboard-page-shell">
           <div className="content-state" role="status">
@@ -501,7 +571,7 @@ export function Dashboard() {
 
   if (loadError || !data) {
     return (
-      <div className="app-shell">
+      <div className="app-shell dashboard-app-shell">
         <SiteHeader />
         <main className="dashboard-page-shell">
           <div className="content-state content-error" role="alert">
@@ -517,68 +587,78 @@ export function Dashboard() {
   }
 
   const displayName = data.profile.display_name || getDisplayName(data.user.user_metadata, data.user.email);
+  const publishedPosts = data.posts.filter((post) => post.status === "published");
+  const draftPosts = data.posts.filter((post) => post.status === "draft");
+  const visiblePosts = activeTab === "published" ? publishedPosts : draftPosts;
+
+  function openComposer() {
+    setComposerOpen(true);
+    window.setTimeout(() => {
+      document.getElementById("write")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  }
+
+  function openProfileEditor() {
+    const editor = document.getElementById("profile-settings");
+    if (editor instanceof HTMLDetailsElement) {
+      editor.open = true;
+      editor.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell dashboard-app-shell">
       <SiteHeader />
       <main className="dashboard-page-shell">
         <div className="dashboard-shell">
-          <section className="dashboard-top">
+          <section className="dashboard-top dashboard-profile-header">
             <div className="dashboard-identity">
-              <div className="initials-badge">{getInitials(displayName)}</div>
-              <div>
-                <p className="eyebrow">Your writer studio</p>
-                <h1>Good to see you, {displayName}.</h1>
-                <p>Build your library one thoughtful piece at a time.</p>
+              <div className="dashboard-profile-avatar" aria-hidden="true">
+                {getInitials(displayName)}
+              </div>
+              <div className="dashboard-profile-info">
+                <p className="eyebrow">Your writer page</p>
+                <div className="dashboard-profile-name">
+                  <h1>{displayName}</h1>
+                  <button className="dashboard-home" type="button" onClick={openProfileEditor}>
+                    Edit profile
+                  </button>
+                </div>
+                <p className="dashboard-profile-bio">
+                  {data.profile.bio || "A quiet place for the stories you want to share."}
+                </p>
+                {data.profile.website ? (
+                  <a
+                    className="dashboard-profile-website"
+                    href={data.profile.website}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {data.profile.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+                  </a>
+                ) : null}
+                <div className="dashboard-profile-counts" aria-label="Profile activity">
+                  <span><strong>{publishedPosts.length}</strong> posts</span>
+                  <span>
+                    <strong>
+                      {data.friendRequests.filter((request) => request.status === "accepted").length}
+                    </strong>{" "}
+                    friends
+                  </span>
+                  <span><strong>{savedCount}</strong> saved</span>
+                </div>
               </div>
             </div>
-            <div className="dashboard-actions">
-              <Link className="dashboard-home" href="/">
-                Read the library
-              </Link>
-              <Link className="dashboard-home" href="/#writers">
-                Meet writers
+            <div className="dashboard-actions dashboard-profile-actions">
+              <button className="dashboard-home dashboard-create-button" type="button" onClick={openComposer}>
+                Create story
+              </button>
+              <Link className="dashboard-home" href={`/writers/${data.user.id}`}>
+                View profile
               </Link>
               <button className="dashboard-home" type="button" onClick={() => void signOut()}>
                 Sign out
               </button>
-            </div>
-          </section>
-
-          <section className="dashboard-stats dashboard-stats-6" aria-label="Your account activity">
-            <div>
-              <strong>{data.posts.filter((post) => post.status === "published").length}</strong>
-              <span>Published notes</span>
-            </div>
-            <div>
-              <strong>{data.posts.filter((post) => post.status === "draft").length}</strong>
-              <span>Drafts</span>
-            </div>
-            <div>
-              <strong>
-                {data.friendRequests.filter((request) => request.status === "accepted").length}
-              </strong>
-              <span>Friends</span>
-            </div>
-            <div>
-              <strong>
-                {
-                  data.friendRequests.filter(
-                    (request) =>
-                      request.status === "pending" &&
-                      request.recipient_id === data.user.id,
-                  ).length
-                }
-              </strong>
-              <span>Requests received</span>
-            </div>
-            <div>
-              <strong>{savedCount}</strong>
-              <span>Saved notes</span>
-            </div>
-            <div>
-              <strong className="dashboard-account">{data.user.email}</strong>
-              <span>Account</span>
             </div>
           </section>
 
@@ -623,16 +703,56 @@ export function Dashboard() {
             </section>
           ) : null}
 
-          <div className="dashboard-content-grid">
-            <section className="dashboard-composer" id="write">
-              <div className="dashboard-heading">
-                <p className="eyebrow">A new contribution</p>
-                <h2>Put something into the world.</h2>
-                <p className="dashboard-muted">
-                  Stories, poems, letters and birthday tributes all belong here.
-                </p>
-              </div>
-              <form className="studio-form" onSubmit={publish}>
+          <details className="profile-editor dashboard-profile-editor" id="profile-settings">
+          <summary>Edit your public details</summary>
+          <form className="studio-form" onSubmit={saveProfile}>
+            <label>
+              Display name
+              <input name="display_name" defaultValue={displayName} maxLength={80} required />
+            </label>
+            <label>
+              Short bio
+              <textarea
+                name="bio"
+                defaultValue={data.profile.bio || ""}
+                maxLength={240}
+                rows={4}
+                placeholder="Tell readers a little about yourself"
+              />
+            </label>
+            <label>
+              Website
+              <input
+                name="website"
+                type="url"
+                defaultValue={data.profile.website || ""}
+                placeholder="https://yoursite.com"
+              />
+            </label>
+            <button className="publish-button" type="submit" disabled={savingProfile}>
+              {savingProfile ? "Saving…" : "Save profile"}
+            </button>
+          </form>
+          </details>
+
+          <section className="dashboard-composer dashboard-composer-panel" id="write" hidden={!composerOpen}>
+          <div className="dashboard-heading dashboard-composer-heading">
+            <div>
+              <p className="eyebrow">Create a post</p>
+              <h2>Share something worth keeping.</h2>
+              <p className="dashboard-muted">
+                Write a story, poem, letter or birthday tribute.
+              </p>
+            </div>
+            <button
+              className="dashboard-close-composer"
+              type="button"
+              onClick={() => setComposerOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+          <form className="studio-form" onSubmit={publish}>
                 <label>
                   Title
                   <input
@@ -767,115 +887,109 @@ export function Dashboard() {
                     {!publishing ? <span aria-hidden="true">↗</span> : null}
                   </button>
                 </div>
-              </form>
-            </section>
-
-            <aside className="dashboard-side">
-              <section className="profile-summary">
-                <p className="eyebrow">Your public page</p>
-                <h2>Let readers meet you.</h2>
-                <p>
-                  {data.profile.bio || "Add a short introduction to your writer profile."}
-                </p>
-                <Link className="text-link" href={`/writers/${data.user.id}`}>
-                  View public profile <span aria-hidden="true">↗</span>
-                </Link>
-              </section>
-              <details className="profile-editor">
-                <summary>Edit your profile</summary>
-                <form className="studio-form" onSubmit={saveProfile}>
-                  <label>
-                    Display name
-                    <input
-                      name="display_name"
-                      defaultValue={displayName}
-                      maxLength={80}
-                      required
-                    />
-                  </label>
-                  <label>
-                    Short bio
-                    <textarea
-                      name="bio"
-                      defaultValue={data.profile.bio || ""}
-                      maxLength={240}
-                      rows={4}
-                      placeholder="Tell readers a little about yourself"
-                    />
-                  </label>
-                  <label>
-                    Website
-                    <input
-                      name="website"
-                      type="url"
-                      defaultValue={data.profile.website || ""}
-                      placeholder="https://yoursite.com"
-                    />
-                  </label>
-                  <button className="publish-button" type="submit" disabled={savingProfile}>
-                    {savingProfile ? "Saving…" : "Save profile"}
-                  </button>
-                </form>
-              </details>
-            </aside>
-          </div>
+            </form>
+          </section>
 
           <section className="dashboard-library">
-            <div className="dashboard-heading">
-              <p className="eyebrow">Your library</p>
-              <h2>Notes you have made.</h2>
+            <div className="dashboard-library-heading">
+              <div>
+                <p className="eyebrow">Your library</p>
+                <h2>Posts</h2>
+              </div>
+              <div className="dashboard-library-tabs" role="tablist" aria-label="Your posts">
+                <button
+                  id="published-tab"
+                  className={activeTab === "published" ? "active" : ""}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === "published"}
+                  aria-controls="dashboard-posts"
+                  onClick={() => setActiveTab("published")}
+                >
+                  Published <span>{publishedPosts.length}</span>
+                </button>
+                <button
+                  id="drafts-tab"
+                  className={activeTab === "drafts" ? "active" : ""}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === "drafts"}
+                  aria-controls="dashboard-posts"
+                  onClick={() => setActiveTab("drafts")}
+                >
+                  Drafts <span>{draftPosts.length}</span>
+                </button>
+              </div>
             </div>
-            {data.posts.length ? (
-              <div className="dashboard-grid">
-                {data.posts.map((post) => (
+            {visiblePosts.length ? (
+              <div className="dashboard-grid dashboard-post-grid" id="dashboard-posts" role="tabpanel"
+                aria-labelledby={activeTab === "published" ? "published-tab" : "drafts-tab"}>
+                {visiblePosts.map((post) => (
                   <article className="dashboard-note" key={post.id}>
-                    {post.image ? (
-                      <Image
-                        className="dashboard-note-image"
-                        src={post.image}
-                        alt={`Cover for ${post.title}`}
-                        width={800}
-                        height={450}
-                        unoptimized
-                      />
-                    ) : null}
-                    <span>
-                      {post.status === "draft" ? "Draft" : post.is_featured ? "Featured" : post.post_type}
-                    </span>
-                    <h3>
-                      {post.status === "published" ? (
-                        <Link href={`/notes/${post.id}`}>{post.title}</Link>
-                      ) : (
-                        post.title
-                      )}
-                    </h3>
-                    <p>{post.excerpt}</p>
-                    <small>
-                      {formatDate(post.created_at)} · {post.read_time} min read
-                    </small>
-                    {post.status === "draft" ? (
-                      <button
-                        className="publish-button dashboard-publish-draft"
-                        type="button"
-                        onClick={() => void publishDraft(post)}
-                        disabled={publishing}
+                    {post.status === "published" ? (
+                      <Link
+                        className={`dashboard-post-tile${post.image ? "" : " has-no-image"}`}
+                        href={`/notes/${post.id}`}
+                        aria-label={`Read ${post.title}`}
                       >
-                        Publish draft
-                      </button>
-                    ) : null}
+                        {post.image ? (
+                          <Image src={post.image} alt="" width={800} height={800} unoptimized />
+                        ) : (
+                          <span className="dashboard-post-placeholder" aria-hidden="true">f.</span>
+                        )}
+                        <span className="dashboard-post-overlay">
+                          <strong>{post.title}</strong>
+                          <small>{post.is_featured ? "Featured" : post.post_type}</small>
+                        </span>
+                      </Link>
+                    ) : (
+                      <div className={`dashboard-post-tile is-draft${post.image ? "" : " has-no-image"}`}>
+                        {post.image ? (
+                          <Image src={post.image} alt="" width={800} height={800} unoptimized />
+                        ) : (
+                          <span className="dashboard-post-placeholder" aria-hidden="true">f.</span>
+                        )}
+                        <span className="dashboard-post-overlay">
+                          <strong>{post.title}</strong>
+                          <small>Draft · {formatDate(post.created_at)}</small>
+                        </span>
+                        <button
+                          className="dashboard-publish-draft"
+                          type="button"
+                          onClick={() => void publishDraft(post)}
+                          disabled={publishing}
+                        >
+                          {publishing ? "Publishing…" : "Publish"}
+                        </button>
+                      </div>
+                    )}
                   </article>
                 ))}
               </div>
             ) : (
-              <p className="empty-state">
-                Your published notes will appear here. Start with a story, letter,
-                poem or birthday special.
-              </p>
+              <div
+                className="dashboard-empty-state"
+                id="dashboard-posts"
+                role="tabpanel"
+                aria-labelledby={activeTab === "published" ? "published-tab" : "drafts-tab"}
+              >
+                <span aria-hidden="true">{activeTab === "published" ? "01" : "02"}</span>
+                <div>
+                  <h3>{activeTab === "published" ? "Your first post starts here." : "No drafts yet."}</h3>
+                  <p>
+                    {activeTab === "published"
+                      ? "Share a story, letter or birthday tribute with the Fieldnotes community."
+                      : "Save a work in progress privately and return to it when you are ready."}
+                  </p>
+                  <button className="text-link" type="button" onClick={openComposer}>
+                    Create a post <span aria-hidden="true">↗</span>
+                  </button>
+                </div>
+              </div>
             )}
           </section>
         </div>
       </main>
-      <SiteFooter />
       {notice ? (
         <div className="data-notice" role="status">
           {notice}

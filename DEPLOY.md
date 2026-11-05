@@ -23,7 +23,10 @@ environment.
 Run `supabase-schema.sql` in the Supabase SQL editor to configure the tables,
 row-level security policies, and image buckets. Published covers use the public
 `covers` bucket; draft covers remain in the private `draft-covers` bucket until
-the author publishes them. Update the deployed
+the author publishes them. The schema limits both buckets to JPEG, PNG, or WebP
+images up to 5 MB. Re-run the storage section of `supabase-schema.sql` in the
+Supabase SQL editor after updating an existing project so its bucket settings
+match the dashboard. Update the deployed
 domain under Supabase **Authentication → URL Configuration** and allow it in
 your Google OAuth redirect configuration.
 

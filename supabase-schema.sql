@@ -275,13 +275,19 @@ grant execute on function public.respond_to_friend_request(uuid, boolean) to aut
 -- ============================================================
 -- STORAGE: Cover images bucket
 -- ============================================================
-insert into storage.buckets (id, name, public)
-values ('covers', 'covers', true)
-on conflict (id) do update set public = true;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('covers', 'covers', true, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+set public = true,
+    file_size_limit = 5242880,
+    allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp'];
 
-insert into storage.buckets (id, name, public)
-values ('draft-covers', 'draft-covers', false)
-on conflict (id) do update set public = false;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('draft-covers', 'draft-covers', false, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+set public = false,
+    file_size_limit = 5242880,
+    allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp'];
 
 drop policy if exists "Anyone can read cover images" on storage.objects;
 drop policy if exists "Signed in users can upload cover images" on storage.objects;
