@@ -249,6 +249,15 @@ export function MessagesInbox() {
 
   function chooseWriter(person: Person) {
     targetIdRef.current = "";
+    const existingThread = threads.find(
+      (thread) =>
+        thread.status !== "declined" &&
+        (thread.requester_id === person.id || thread.recipient_id === person.id),
+    );
+    if (existingThread) {
+      chooseThread(existingThread);
+      return;
+    }
     setSelectedThreadId(null);
     setNewRecipient(person);
     setMessages([]);
@@ -637,7 +646,7 @@ export function MessagesInbox() {
             </section>
           </div>
         )}
-        {error && threads.length ? <p className="messages-inline-error" role="alert">{error}</p> : null}
+        {error ? <p className="messages-inline-error" role="alert">{error}</p> : null}
         {notice ? <p className="messages-notice" role="status">{notice}</p> : null}
       </main>
     </div>
