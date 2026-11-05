@@ -37,6 +37,29 @@ function messageError(error: unknown, fallback: string) {
   ) {
     return "Could not reach Fieldnotes. Check your connection and try again.";
   }
+
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const details = error as {
+      message: string;
+      code?: string;
+      details?: string;
+      hint?: string;
+    };
+    const description = [
+      details.message,
+      details.code ? `Code: ${details.code}` : "",
+      details.details || "",
+      details.hint ? `Hint: ${details.hint}` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    if (/relation .* does not exist|could not find the table/i.test(description)) {
+      return `${description} Run supabase-messaging.sql in the Supabase SQL editor and check that it completed successfully.`;
+    }
+
+    return description || fallback;
+  }
   return error instanceof Error ? error.message : fallback;
 }
 
@@ -301,10 +324,12 @@ export function MessagesInbox() {
     let threadId = selectedThread?.id || "";
     let createdThread = false;
     let uploadedPath = "";
+    let sendStage = "preparing the message";
     const requestedPerson = newRecipient;
 
     try {
       if (!threadId && newRecipient) {
+        sendStage = "creating the message request";
         const { data: created, error: createError } = await supabase
           .from("message_threads")
           .insert({
@@ -320,6 +345,7 @@ export function MessagesInbox() {
       }
 
       if (attachment) {
+        sendStage = "uploading the image";
         const extension = attachment.type === "image/jpeg" ? "jpg" : attachment.type.split("/")[1];
         uploadedPath = `${threadId}/${user.id}/${crypto.randomUUID()}.${extension}`;
         const { error: uploadError } = await supabase.storage
@@ -332,6 +358,7 @@ export function MessagesInbox() {
         if (uploadError) throw new Error(`Image upload failed: ${uploadError.message}`);
       }
 
+      sendStage = "saving the message";
       const { error: insertError } = await supabase.from("messages").insert({
         thread_id: threadId,
         sender_id: user.id,
@@ -377,7 +404,9 @@ export function MessagesInbox() {
           .eq("id", threadId);
         if (cleanupError) console.error("Could not remove the empty message request.", cleanupError);
       }
-      setError(messageError(sendError, "Your message could not be sent."));
+      setError(
+        `Could not complete ${sendStage}: ${messageError(sendError, "The server returned no error details. Check your Supabase setup and try again.")}`,
+      );
     } finally {
       setSending(false);
     }
