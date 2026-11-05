@@ -16,6 +16,13 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
 
+  function getReturnPath() {
+    const requestedPath = new URLSearchParams(window.location.search).get("next");
+    return requestedPath && requestedPath.startsWith("/") && !requestedPath.startsWith("//")
+      ? requestedPath
+      : "/dashboard";
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
@@ -28,18 +35,19 @@ export function AuthForm({ mode }: AuthFormProps) {
 
     try {
       const supabase = createClient();
+      const returnPath = getReturnPath();
       if (signingUp) {
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: submittedEmail,
           password,
           options: {
             data: { display_name: name, full_name: name },
-            emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnPath)}`,
           },
         });
         if (signUpError) throw signUpError;
         if (data.session) {
-          router.replace("/dashboard");
+          router.replace(returnPath);
           router.refresh();
           return;
         }
@@ -52,7 +60,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           password,
         });
         if (signInError) throw signInError;
-        router.replace("/dashboard");
+        router.replace(returnPath);
         router.refresh();
       }
     } catch (submitError) {
@@ -70,10 +78,11 @@ export function AuthForm({ mode }: AuthFormProps) {
     setMessage("");
     setError(false);
     try {
+      const returnPath = getReturnPath();
       const { error: oauthError } = await createClient().auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnPath)}`,
         },
       });
       if (oauthError) throw oauthError;

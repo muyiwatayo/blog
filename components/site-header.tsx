@@ -162,6 +162,12 @@ export function SiteHeader() {
                 <span>The monthly letter</span>
                 <span aria-hidden="true">↗</span>
               </Link>
+              {signedIn ? (
+                <Link href="/messages" onClick={closeMenu}>
+                  <span>Your messages</span>
+                  <span aria-hidden="true">↗</span>
+                </Link>
+              ) : null}
             </div>
             <div className="site-menu-cta">
               <p>{signedIn ? "Your notebook is ready." : "Have something worth keeping?"}</p>

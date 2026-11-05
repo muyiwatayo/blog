@@ -101,11 +101,22 @@ export function Dashboard() {
   const [form, setForm] = useState(initialForm);
   const [cover, setCover] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
+  const [removeCover, setRemoveCover] = useState(false);
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState("");
+  const [removeAvatar, setRemoveAvatar] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<DashboardTab>("published");
+  const [currentTime, setCurrentTime] = useState(0);
   const { savedCount } = useSavedNotes();
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -212,6 +223,73 @@ export function Dashboard() {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
 
+  useEffect(() => () => {
+    if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+  }, [avatarPreviewUrl]);
+
+  function getEditSecondsRemaining(post: Post) {
+    return Math.max(
+      0,
+      Math.ceil((new Date(post.created_at).getTime() + 3 * 60 * 1000 - currentTime) / 1000),
+    );
+  }
+
+  async function copySharedLink(path: string) {
+    const link = new URL(path, window.location.origin).toString();
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(link);
+      } else {
+        const input = document.createElement("textarea");
+        input.value = link;
+        input.style.position = "fixed";
+        input.style.opacity = "0";
+        document.body.append(input);
+        input.select();
+        const copied = document.execCommand("copy");
+        input.remove();
+        if (!copied) throw new Error("Copy was blocked by the browser.");
+      }
+      setNotice("Share link copied to your clipboard.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "The share link could not be copied.");
+    }
+  }
+
+  function beginEdit(post: Post) {
+    const remaining = getEditSecondsRemaining(post);
+    if (remaining <= 0) {
+      setNotice("The 3-minute editing window has ended.");
+      return;
+    }
+    setEditingPostId(post.id);
+    setForm({
+      title: post.title,
+      author: post.author,
+      type: post.post_type,
+      category: post.category,
+      body: post.body,
+      status: post.status,
+      is_featured: post.is_featured,
+    });
+    setCover(null);
+    setPreviewUrl(post.image || "");
+    setRemoveCover(false);
+    setComposerOpen(true);
+    window.setTimeout(() => {
+      document.getElementById("write")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  }
+
+  function resetComposer() {
+    setEditingPostId(null);
+    setForm(initialForm);
+    setCover(null);
+    setPreviewUrl("");
+    setRemoveCover(false);
+    setComposerOpen(false);
+  }
+
   function updateForm(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value } = event.currentTarget;
     setForm((current) => ({ ...current, [name]: value }));
@@ -223,12 +301,14 @@ export function Dashboard() {
     if (!selected) {
       setCover(null);
       setPreviewUrl("");
+      setRemoveCover(false);
       return;
     }
     if (!IMAGE_MIME_TYPES.includes(selected.type as (typeof IMAGE_MIME_TYPES)[number])) {
       setCover(null);
       setPreviewUrl("");
       event.currentTarget.value = "";
+      setRemoveCover(false);
       setNotice("Choose a JPEG, PNG or WebP image.");
       return;
     }
@@ -236,11 +316,41 @@ export function Dashboard() {
       setCover(null);
       setPreviewUrl("");
       event.currentTarget.value = "";
+      setRemoveCover(false);
       setNotice("Cover images must be 5 MB or smaller.");
       return;
     }
     setCover(selected);
     setPreviewUrl(URL.createObjectURL(selected));
+    setRemoveCover(false);
+    setRemoveCover(false);
+  }
+
+  function selectAvatar(event: ChangeEvent<HTMLInputElement>) {
+    const selected = event.currentTarget.files?.[0] || null;
+    setNotice("");
+    if (!selected) {
+      setAvatarFile(null);
+      setAvatarPreviewUrl("");
+      return;
+    }
+    if (!IMAGE_MIME_TYPES.includes(selected.type as (typeof IMAGE_MIME_TYPES)[number])) {
+      setAvatarFile(null);
+      setAvatarPreviewUrl("");
+      event.currentTarget.value = "";
+      setNotice("Choose a JPEG, PNG or WebP profile photo.");
+      return;
+    }
+    if (selected.size > MAX_IMAGE_BYTES) {
+      setAvatarFile(null);
+      setAvatarPreviewUrl("");
+      event.currentTarget.value = "";
+      setNotice("Profile photos must be 5 MB or smaller.");
+      return;
+    }
+    setAvatarFile(selected);
+    setAvatarPreviewUrl(URL.createObjectURL(selected));
+    setRemoveAvatar(false);
   }
 
   async function publish(event: FormEvent<HTMLFormElement>) {
@@ -254,8 +364,19 @@ export function Dashboard() {
     let uploadedBucket = "covers";
 
     try {
-      let image: string | null = null;
-      let privateImagePath: string | null = null;
+      const existingPost = editingPostId
+        ? data.posts.find((post) => post.id === editingPostId)
+        : null;
+      if (editingPostId && !existingPost) {
+        throw new Error("This post could not be found in your writer studio.");
+      }
+
+      let image = removeCover
+        ? null
+        : existingPost?.private_image_path
+          ? null
+          : existingPost?.image || null;
+      let privateImagePath = removeCover ? null : existingPost?.private_image_path || null;
       if (cover) {
         const uploadFile = await prepareCoverUpload(cover);
         const extension = uploadFile.type === "image/jpeg" ? "jpg" : uploadFile.type.split("/")[1];
@@ -276,34 +397,48 @@ export function Dashboard() {
         uploadedPath = imagePath;
         if (form.status === "draft") {
           privateImagePath = imagePath;
+          image = null;
         } else {
           image = supabase.storage.from("covers").getPublicUrl(imagePath).data.publicUrl;
+          privateImagePath = null;
         }
       }
 
       const excerpt = form.body.trim().replace(/\s+/g, " ").slice(0, 180);
       const isPublished = form.status === "published";
-      const { data: publishedPost, error: insertError } = await supabase
-        .from("posts")
-        .insert({
-          title: form.title.trim(),
-          excerpt,
-          body: form.body.trim(),
-          post_type: form.type,
-          category: form.type === "Birthday special" ? "Celebrations" : form.category,
-          author: form.author.trim(),
-          author_id: data.user.id,
-          read_time: Math.max(1, Math.ceil(form.body.trim().split(/\s+/).length / 180)),
-          image,
-          private_image_path: privateImagePath,
-          status: form.status,
-          is_featured: isPublished && form.is_featured,
-          published_at: isPublished ? new Date().toISOString() : null,
-        })
-        .select("*")
-        .single();
-      if (insertError) throw insertError;
-      let note = publishedPost as Post;
+      const postValues = {
+        title: form.title.trim(),
+        excerpt,
+        body: form.body.trim(),
+        post_type: form.type,
+        category: form.type === "Birthday special" ? "Celebrations" : form.category,
+        author: form.author.trim(),
+        author_id: data.user.id,
+        read_time: Math.max(1, Math.ceil(form.body.trim().split(/\s+/).length / 180)),
+        image,
+        private_image_path: privateImagePath,
+        status: form.status,
+        is_featured: isPublished && form.is_featured,
+        published_at: isPublished
+          ? existingPost?.published_at || new Date().toISOString()
+          : null,
+      };
+      const postQuery = existingPost
+        ? supabase
+            .from("posts")
+            .update(postValues)
+            .eq("id", existingPost.id)
+            .eq("author_id", data.user.id)
+            .gt("created_at", new Date(Date.now() - 3 * 60 * 1000).toISOString())
+        : supabase.from("posts").insert(postValues);
+      const { data: savedPost, error: saveError } = await postQuery.select("*").single();
+      if (saveError) {
+        if (existingPost && /row-level security|0 rows|no rows/i.test(saveError.message)) {
+          throw new Error("The 3-minute editing window has ended. Your post was not changed.");
+        }
+        throw saveError;
+      }
+      let note = savedPost as Post;
       if (note.private_image_path) {
         const { data: signedImage, error: imageError } = await supabase.storage
           .from("draft-covers")
@@ -317,16 +452,26 @@ export function Dashboard() {
 
       setData((current) =>
         current
-          ? { ...current, posts: [note, ...current.posts] }
+          ? {
+              ...current,
+              posts: existingPost
+                ? current.posts.map((post) => (post.id === note.id ? note : post))
+                : [note, ...current.posts],
+            }
           : current,
       );
-      setForm(initialForm);
-      setCover(null);
-      setPreviewUrl("");
-      setComposerOpen(false);
+      if (existingPost?.private_image_path && (cover || removeCover)) {
+        const { error: removeError } = await supabase.storage
+          .from("draft-covers")
+          .remove([existingPost.private_image_path]);
+        if (removeError) console.error("Could not remove the replaced draft cover.", removeError);
+      }
+      resetComposer();
       formElement.reset();
       setNotice(
-        isPublished
+        existingPost
+          ? "Your post has been updated."
+          : isPublished
           ? form.is_featured
             ? "Your note is published and featured on the homepage."
             : "Your note is published."
@@ -391,21 +536,19 @@ export function Dashboard() {
         image = supabase.storage.from("covers").getPublicUrl(draftPath).data.publicUrl;
       }
 
-      const { data: updatedPost, error: updateError } = await supabase
+      const { error: publishError } = await supabase.rpc("publish_own_draft", {
+        p_post_id: post.id,
+        p_image: image,
+      });
+      if (publishError) throw publishError;
+      publicImagePath = null;
+      const { data: updatedPost, error: readError } = await supabase
         .from("posts")
-        .update({
-          status: "published",
-          is_featured: false,
-          image,
-          private_image_path: null,
-          published_at: new Date().toISOString(),
-        })
+        .select("*")
         .eq("id", post.id)
         .eq("author_id", data.user.id)
-        .eq("status", "draft")
-        .select("*")
         .single();
-      if (updateError) throw updateError;
+      if (readError) throw readError;
 
       if (post.private_image_path) {
         const { error: removeError } = await supabase.storage
@@ -498,6 +641,7 @@ export function Dashboard() {
     const displayName = String(values.get("display_name") || "").trim();
     const bio = String(values.get("bio") || "").trim();
     const websiteInput = String(values.get("website") || "").trim();
+    let uploadedAvatarPath: string | null = null;
 
     try {
       let website = "";
@@ -510,36 +654,80 @@ export function Dashboard() {
       }
 
       const supabase = createClient();
+      let avatarUrl = removeAvatar ? null : data.profile.avatar_url;
+      let avatarPath = removeAvatar ? null : data.profile.avatar_path || null;
+      if (avatarFile) {
+        const extension = avatarFile.type === "image/jpeg" ? "jpg" : avatarFile.type.split("/")[1];
+        uploadedAvatarPath = `${data.user.id}/avatars/${crypto.randomUUID()}.${extension}`;
+        const { error: avatarUploadError } = await supabase.storage
+          .from("covers")
+          .upload(uploadedAvatarPath, avatarFile, {
+            contentType: avatarFile.type,
+            cacheControl: "3600",
+            upsert: false,
+          });
+        if (avatarUploadError) {
+          throw new Error(`Profile photo upload failed: ${avatarUploadError.message}`);
+        }
+        avatarPath = uploadedAvatarPath;
+        avatarUrl = supabase.storage.from("covers").getPublicUrl(uploadedAvatarPath).data.publicUrl;
+      }
+      const { data: updatedAuth, error: authError } = await supabase.auth.updateUser({
+        data: { display_name: displayName, full_name: displayName, bio, website },
+      });
+      if (authError) throw authError;
+
       const { error: profileError } = await supabase.from("profiles").upsert(
         {
           id: data.user.id,
           display_name: displayName,
           bio,
           website,
+          avatar_url: avatarUrl,
+          avatar_path: avatarPath,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "id" },
       );
       if (profileError) throw profileError;
 
-      const { error: authError } = await supabase.auth.updateUser({
-        data: { display_name: displayName, full_name: displayName, bio, website },
-      });
-      if (authError) throw authError;
-
-      const { data: refreshedUser, error: refreshError } = await supabase.auth.getUser();
-      if (refreshError) throw refreshError;
       setData((current) =>
-        current && refreshedUser.user
+        current && updatedAuth.user
           ? {
               ...current,
-              user: refreshedUser.user,
-              profile: { ...current.profile, display_name: displayName, bio, website },
+              user: updatedAuth.user,
+              profile: {
+                ...current.profile,
+                display_name: displayName,
+                bio,
+                website,
+                avatar_url: avatarUrl,
+                avatar_path: avatarPath,
+              },
             }
           : current,
       );
+      if (removeAvatar && data.profile.avatar_path) {
+        const { error: removeError } = await supabase.storage
+          .from("covers")
+          .remove([data.profile.avatar_path]);
+        if (removeError) console.error("Could not remove the previous profile photo.", removeError);
+      } else if (avatarFile && data.profile.avatar_path) {
+        const { error: removeError } = await supabase.storage
+          .from("covers")
+          .remove([data.profile.avatar_path]);
+        if (removeError) console.error("Could not remove the replaced profile photo.", removeError);
+      }
+      setAvatarFile(null);
+      setAvatarPreviewUrl("");
+      setRemoveAvatar(false);
       setNotice("Your profile is saved.");
     } catch (error) {
+      if (uploadedAvatarPath) {
+        const { error: removeError } = await createClient()
+          .storage.from("covers").remove([uploadedAvatarPath]);
+        if (removeError) console.error("Could not remove the unused profile photo.", removeError);
+      }
       setNotice(error instanceof Error ? error.message : "Your profile could not be saved.");
     } finally {
       setSavingProfile(false);
@@ -587,11 +775,15 @@ export function Dashboard() {
   }
 
   const displayName = data.profile.display_name || getDisplayName(data.user.user_metadata, data.user.email);
+  const avatarSrc = avatarPreviewUrl || (!removeAvatar ? data.profile.avatar_url : null);
   const publishedPosts = data.posts.filter((post) => post.status === "published");
   const draftPosts = data.posts.filter((post) => post.status === "draft");
   const visiblePosts = activeTab === "published" ? publishedPosts : draftPosts;
+  const editingPost = data.posts.find((post) => post.id === editingPostId) || null;
+  const editSecondsRemaining = editingPost ? getEditSecondsRemaining(editingPost) : 0;
 
   function openComposer() {
+    resetComposer();
     setComposerOpen(true);
     window.setTimeout(() => {
       document.getElementById("write")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -614,7 +806,11 @@ export function Dashboard() {
           <section className="dashboard-top dashboard-profile-header">
             <div className="dashboard-identity">
               <div className="dashboard-profile-avatar" aria-hidden="true">
-                {getInitials(displayName)}
+                {avatarSrc ? (
+                  <Image src={avatarSrc} alt="" width={160} height={160} unoptimized />
+                ) : (
+                  getInitials(displayName)
+                )}
               </div>
               <div className="dashboard-profile-info">
                 <p className="eyebrow">Your writer page</p>
@@ -655,6 +851,16 @@ export function Dashboard() {
               </button>
               <Link className="dashboard-home" href={`/writers/${data.user.id}`}>
                 View profile
+              </Link>
+              <button
+                className="dashboard-home"
+                type="button"
+                onClick={() => void copySharedLink(`/writers/${data.user.id}`)}
+              >
+                Copy profile link
+              </button>
+              <Link className="dashboard-home" href="/messages">
+                Messages
               </Link>
               <button className="dashboard-home" type="button" onClick={() => void signOut()}>
                 Sign out
@@ -707,6 +913,31 @@ export function Dashboard() {
           <summary>Edit your public details</summary>
           <form className="studio-form" onSubmit={saveProfile}>
             <label>
+              Profile photo <span>Optional · JPEG, PNG or WebP · up to 5 MB</span>
+              <input
+                className="cover-input"
+                type="file"
+                name="avatar"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={selectAvatar}
+              />
+            </label>
+            {avatarSrc ? (
+              <div className="profile-photo-preview">
+                <Image src={avatarSrc} alt="Profile photo preview" width={96} height={96} unoptimized />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAvatarFile(null);
+                    setAvatarPreviewUrl("");
+                    setRemoveAvatar(true);
+                  }}
+                >
+                  Remove photo
+                </button>
+              </div>
+            ) : null}
+            <label>
               Display name
               <input name="display_name" defaultValue={displayName} maxLength={80} required />
             </label>
@@ -739,7 +970,7 @@ export function Dashboard() {
           <div className="dashboard-heading dashboard-composer-heading">
             <div>
               <p className="eyebrow">Create a post</p>
-              <h2>Share something worth keeping.</h2>
+              <h2>{editingPostId ? "Edit your post." : "Share something worth keeping."}</h2>
               <p className="dashboard-muted">
                 Write a story, poem, letter or birthday tribute.
               </p>
@@ -747,7 +978,7 @@ export function Dashboard() {
             <button
               className="dashboard-close-composer"
               type="button"
-              onClick={() => setComposerOpen(false)}
+              onClick={resetComposer}
             >
               Close
             </button>
@@ -806,7 +1037,12 @@ export function Dashboard() {
                 )}
                 <label>
                   Publish setting
-                  <select name="status" value={form.status} onChange={updateForm}>
+                <select
+                  name="status"
+                  value={form.status}
+                  onChange={updateForm}
+                  disabled={Boolean(editingPostId)}
+                >
                     <option value="published">Publish to the homepage</option>
                     <option value="draft">Save as a private draft</option>
                   </select>
@@ -863,6 +1099,7 @@ export function Dashboard() {
                       onClick={() => {
                         setCover(null);
                         setPreviewUrl("");
+                        setRemoveCover(Boolean(editingPostId));
                       }}
                       aria-label="Remove cover image"
                     >
@@ -872,15 +1109,25 @@ export function Dashboard() {
                 ) : null}
                 <div className="composer-footer">
                   <span>
-                    {form.status === "published"
+                    {editingPostId
+                      ? editSecondsRemaining > 0
+                        ? `Time left to edit: ${Math.floor(editSecondsRemaining / 60)}:${String(editSecondsRemaining % 60).padStart(2, "0")}.`
+                        : "The 3-minute editing window has ended."
+                      : form.status === "published"
                       ? "Readers can find this note in the public library."
                       : "Only you can see this draft."}
                   </span>
-                  <button className="publish-button" type="submit" disabled={publishing}>
+                  <button
+                    className="publish-button"
+                    type="submit"
+                    disabled={publishing || Boolean(editingPostId && editSecondsRemaining <= 0)}
+                  >
                     {publishing
                       ? form.status === "draft"
                         ? "Saving…"
                         : "Publishing…"
+                      : editingPostId
+                        ? "Save changes"
                       : form.status === "draft"
                         ? "Save draft"
                         : "Publish note"}
@@ -963,6 +1210,24 @@ export function Dashboard() {
                         </button>
                       </div>
                     )}
+                    <div className="dashboard-post-actions">
+                      {getEditSecondsRemaining(post) > 0 ? (
+                        <button type="button" onClick={() => beginEdit(post)}>
+                          Edit · {Math.floor(getEditSecondsRemaining(post) / 60)}:
+                          {String(getEditSecondsRemaining(post) % 60).padStart(2, "0")}
+                        </button>
+                      ) : (
+                        <span>Editing closed</span>
+                      )}
+                      {post.status === "published" ? (
+                        <button
+                          type="button"
+                          onClick={() => void copySharedLink(`/notes/${post.id}`)}
+                        >
+                          Copy link
+                        </button>
+                      ) : null}
+                    </div>
                   </article>
                 ))}
               </div>

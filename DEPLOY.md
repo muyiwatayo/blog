@@ -26,7 +26,15 @@ row-level security policies, and image buckets. Published covers use the public
 the author publishes them. The schema limits both buckets to JPEG, PNG, or WebP
 images up to 5 MB. Re-run the storage section of `supabase-schema.sql` in the
 Supabase SQL editor after updating an existing project so its bucket settings
-match the dashboard. Update the deployed
+match the dashboard. Post edits are allowed for three minutes after creation;
+the schema enforces that limit in the database.
+
+To enable private messaging, run `supabase-messaging.sql` in the Supabase SQL
+editor as well. It creates the request and message tables, row-level security
+policies, and the private `message-images` bucket. Writers can send a single
+message request with an optional image; recipients must accept before either
+writer can continue the conversation. Images are limited to JPEG, PNG, or WebP
+up to 5 MB. Update the deployed
 domain under Supabase **Authentication → URL Configuration** and allow it in
 your Google OAuth redirect configuration.
 

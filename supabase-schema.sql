@@ -71,6 +71,68 @@ create trigger set_post_published_at
 before insert or update of status, published_at on public.posts
 for each row execute function public.set_post_published_at();
 
+create or replace function public.enforce_post_edit_window()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.created_at is distinct from old.created_at then
+    raise exception 'A post creation time cannot be changed.';
+  end if;
+
+  if old.created_at <= now() - interval '3 minutes'
+    and current_setting('app.allow_post_publish', true) is distinct from 'on'
+  then
+    raise exception 'The 3-minute editing window has ended.';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists enforce_post_edit_window on public.posts;
+create trigger enforce_post_edit_window
+before update on public.posts
+for each row execute function public.enforce_post_edit_window();
+
+create or replace function public.publish_own_draft(
+  p_post_id uuid,
+  p_image text
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  affected_rows integer;
+begin
+  if auth.uid() is null then
+    raise exception 'Sign in to publish this draft.';
+  end if;
+
+  perform set_config('app.allow_post_publish', 'on', true);
+  update public.posts
+  set status = 'published',
+      is_featured = false,
+      image = p_image,
+      private_image_path = null,
+      published_at = now()
+  where id = p_post_id
+    and author_id = auth.uid()
+    and status = 'draft';
+
+  get diagnostics affected_rows = row_count;
+  if affected_rows <> 1 then
+    raise exception 'This draft is no longer available.';
+  end if;
+end;
+$$;
+
+revoke all on function public.publish_own_draft(uuid, text) from public;
+grant execute on function public.publish_own_draft(uuid, text) to authenticated;
+
 create table if not exists public.subscribers (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
@@ -115,6 +177,7 @@ drop policy if exists "Signed in users can publish posts" on public.posts;
 drop policy if exists "Public and authors can read posts" on public.posts;
 drop policy if exists "Authors can publish posts" on public.posts;
 drop policy if exists "Authors can update their posts" on public.posts;
+drop policy if exists "Authors can edit posts for three minutes" on public.posts;
 drop policy if exists "Authors can delete their posts" on public.posts;
 drop policy if exists "Anyone can subscribe" on public.subscribers;
 
@@ -126,10 +189,14 @@ create policy "Authors can publish posts"
   on public.posts for insert to authenticated
   with check (auth.uid() = author_id and status in ('draft', 'published'));
 
-create policy "Authors can update their posts"
+create policy "Authors can edit posts for three minutes"
   on public.posts for update to authenticated
-  using (auth.uid() = author_id)
-  with check (auth.uid() = author_id and status in ('draft', 'published'));
+  using (auth.uid() = author_id and created_at > now() - interval '3 minutes')
+  with check (
+    auth.uid() = author_id
+    and created_at > now() - interval '3 minutes'
+    and status in ('draft', 'published')
+  );
 
 create policy "Authors can delete their posts"
   on public.posts for delete to authenticated
@@ -176,6 +243,8 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists avatar_path text;
 
 alter table public.profiles enable row level security;
 

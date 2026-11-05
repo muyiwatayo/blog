@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PostCard } from "@/components/post-card";
@@ -233,7 +234,19 @@ export function WriterProfile({ id }: { id: string }) {
           <>
             <section className="profile-hero">
               <div className="profile-hero-inner">
-                <div className="profile-avatar-xl">{getInitials(name)}</div>
+                <div className="profile-avatar-xl">
+                  {data.profile.avatar_url ? (
+                    <Image
+                      src={data.profile.avatar_url}
+                      alt={`${name}'s profile`}
+                      width={112}
+                      height={112}
+                      unoptimized
+                    />
+                  ) : (
+                    getInitials(name)
+                  )}
+                </div>
                 <div className="profile-hero-copy">
                   <p className="eyebrow">Writer on Fieldnotes</p>
                   <h1 className="profile-name">{name}</h1>
@@ -269,16 +282,23 @@ export function WriterProfile({ id }: { id: string }) {
                       Edit profile
                     </Link>
                   ) : (
-                    <FriendRequestButton
-                      status={
-                        data.currentUserId
-                          ? getFriendshipStatus(data.friendRequests, data.currentUserId, id)
-                          : "none"
-                      }
-                      signedIn={Boolean(data.currentUserId)}
-                      busy={friendActionBusy}
-                      onAction={(action) => void handleFriendAction(action)}
-                    />
+                    <div className="profile-contact-actions">
+                      <FriendRequestButton
+                        status={
+                          data.currentUserId
+                            ? getFriendshipStatus(data.friendRequests, data.currentUserId, id)
+                            : "none"
+                        }
+                        signedIn={Boolean(data.currentUserId)}
+                        busy={friendActionBusy}
+                        onAction={(action) => void handleFriendAction(action)}
+                      />
+                      {data.currentUserId ? (
+                        <Link className="profile-message-link" href={`/messages?to=${id}`}>
+                          Send a message
+                        </Link>
+                      ) : null}
+                    </div>
                   )}
                 </div>
               </div>

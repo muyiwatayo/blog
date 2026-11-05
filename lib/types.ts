@@ -22,6 +22,7 @@ export type Profile = {
   bio: string | null;
   website: string | null;
   avatar_url: string | null;
+  avatar_path?: string | null;
   created_at: string;
   updated_at: string;
 };

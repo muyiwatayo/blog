@@ -442,7 +442,17 @@ export function HomePage() {
                   <article className="writer-card" key={writer.id}>
                     <div className="writer-card-top">
                       <div className="writer-avatar" aria-hidden="true">
-                        {name.slice(0, 1).toUpperCase()}
+                        {writer.avatar_url ? (
+                          <Image
+                            src={writer.avatar_url}
+                            alt=""
+                            width={48}
+                            height={48}
+                            unoptimized
+                          />
+                        ) : (
+                          name.slice(0, 1).toUpperCase()
+                        )}
                       </div>
                       <div>
                         <h3 className="writer-card-name">{name}</h3>
