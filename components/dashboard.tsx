@@ -82,6 +82,17 @@ function getDashboardErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
+function getOwnedCoverPath(image: string | null, userId: string): string | null {
+  if (!image) return null;
+  try {
+    const marker = "/storage/v1/object/public/covers/";
+    const path = decodeURIComponent(new URL(image).pathname.split(marker)[1] || "");
+    return path.startsWith(`${userId}/`) ? path : null;
+  } catch {
+    return null;
+  }
+}
+
 const initialForm = {
   title: "",
   author: "",
@@ -107,6 +118,7 @@ export function Dashboard() {
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState("");
   const [removeAvatar, setRemoveAvatar] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<DashboardTab>("published");
@@ -253,6 +265,51 @@ export function Dashboard() {
       setNotice("Share link copied to your clipboard.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "The share link could not be copied.");
+    }
+  }
+
+  async function deletePost(post: Post) {
+    if (!data || !window.confirm(`Permanently delete “${post.title}”? This cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingPostId(post.id);
+    setNotice("");
+    try {
+      const supabase = createClient();
+      const { data: deletedPost, error: deleteError } = await supabase
+        .from("posts")
+        .delete()
+        .eq("id", post.id)
+        .eq("author_id", data.user.id)
+        .select("id")
+        .maybeSingle();
+      if (deleteError) throw deleteError;
+      if (!deletedPost) throw new Error("This story could not be found in your account.");
+
+      setData((current) =>
+        current
+          ? { ...current, posts: current.posts.filter((item) => item.id !== post.id) }
+          : current,
+      );
+      if (editingPostId === post.id) resetComposer();
+      setNotice("Your story was deleted.");
+
+      const coverPath = post.private_image_path || getOwnedCoverPath(post.image, data.user.id);
+      if (coverPath) {
+        const bucket = post.private_image_path ? "draft-covers" : "covers";
+        const { error: cleanupError } = await supabase.storage
+          .from(bucket)
+          .remove([coverPath]);
+        if (cleanupError) {
+          console.error("The deleted story's cover could not be removed from storage.", cleanupError);
+          setNotice("Your story was deleted, but its cover image could not be removed.");
+        }
+      }
+    } catch (error) {
+      setNotice(getDashboardErrorMessage(error, "Your story could not be deleted."));
+    } finally {
+      setDeletingPostId(null);
     }
   }
 
@@ -1227,6 +1284,14 @@ export function Dashboard() {
                           Copy link
                         </button>
                       ) : null}
+                      <button
+                        className="dashboard-delete-post"
+                        type="button"
+                        onClick={() => void deletePost(post)}
+                        disabled={publishing || deletingPostId !== null}
+                      >
+                        {deletingPostId === post.id ? "Deleting…" : "Delete"}
+                      </button>
                     </div>
                   </article>
                 ))}

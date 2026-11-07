@@ -18,3 +18,14 @@ next-env.d.ts
 
 # TypeScript build metadata
 *.tsbuildinfo
+
+# Android local build output and signing material
+android/.gradle/
+android/local.properties
+android/**/build/
+android/*.jks
+android/*.keystore
+*.jks
+*.keystore
+*.aab
+*.apk

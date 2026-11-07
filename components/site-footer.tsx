@@ -7,24 +7,53 @@ import { SocialLinks } from "@/components/social-links";
 function ShareFieldnotes() {
   const [message, setMessage] = useState("");
 
+  async function copyLink(url: string) {
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(url);
+        return;
+      } catch (error) {
+        console.warn("Clipboard API failed; trying the browser copy fallback.", error);
+      }
+    }
+
+    const fallback = document.createElement("textarea");
+    fallback.value = url;
+    fallback.setAttribute("readonly", "");
+    fallback.style.position = "fixed";
+    fallback.style.opacity = "0";
+    document.body.append(fallback);
+    fallback.select();
+    const copied = document.execCommand("copy");
+    fallback.remove();
+    if (copied) return;
+
+    throw new Error("Clipboard access is unavailable in this browser.");
+  }
+
   async function share() {
+    setMessage("");
     const url = new URL("/", window.location.href).toString();
-    try {
-      if (navigator.share) {
+    if (navigator.share) {
+      try {
         await navigator.share({
           title: "Fieldnotes",
           text: "Independent notes for a noisy world.",
           url,
         });
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(url);
-        setMessage("Link copied.");
-      } else {
-        setMessage("Copy the Fieldnotes address from your browser to share it.");
+        setMessage("Fieldnotes shared.");
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
       }
+    }
+
+    try {
+      await copyLink(url);
+      setMessage("Link copied. Share Fieldnotes with a friend.");
     } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      setMessage("The link could not be copied. Share it from your browser address bar.");
+      console.error("Could not share or copy the Fieldnotes link.", error);
+      setMessage("Sharing isn’t available here. Copy the site address from your browser.");
     }
   }
 
@@ -33,7 +62,9 @@ function ShareFieldnotes() {
       <button type="button" onClick={() => void share()}>
         Share Fieldnotes <span aria-hidden="true">↗</span>
       </button>
-      {message ? <span role="status">{message}</span> : null}
+      <span className="footer-share-message" role="status" aria-live="polite">
+        {message}
+      </span>
     </div>
   );
 }

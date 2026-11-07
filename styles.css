@@ -2837,6 +2837,9 @@ body { background: #f7f7f0; color: #1b3428; }
 .dashboard-app-shell .dashboard-post-actions { color: #64736a; }
 .dashboard-app-shell .dashboard-post-actions button { color: #28533a; }
 .dashboard-app-shell .dashboard-post-actions button:hover { color: #173d2d; }
+.dashboard-app-shell .dashboard-post-actions .dashboard-delete-post { color: #985243; }
+.dashboard-app-shell .dashboard-post-actions .dashboard-delete-post:hover { color: #7e3328; }
+.dashboard-app-shell .dashboard-post-actions button:disabled { cursor: wait; opacity: .6; }
 .dashboard-app-shell .dashboard-publish-draft { background: #fbfaf5; color: #1b3428; }
 .dashboard-app-shell .dashboard-empty-state { color: #64736a; }
 .dashboard-app-shell .dashboard-empty-state h3 { color: #1b3428; }
@@ -2915,6 +2918,14 @@ summary:focus-visible { outline-color: #39704b; }
   .dashboard-app-shell .dashboard-profile-counts { gap: 11px; font-size: 12px; }
   .dashboard-app-shell .dashboard-profile-name h1 { font-size: 24px; }
 }
+
+.wordmark,
+.wordmark-label {
+  font-family: 'DM Sans', Arial, sans-serif;
+  font-style: normal;
+  font-weight: 600;
+}
+.wordmark-label > span:first-child { font-style: normal; }
 
 .app-shell {
   background: #f7f7f0;

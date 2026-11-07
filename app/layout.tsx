@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import "../styles.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://fieldnotes-blog.vercel.app"),
+  metadataBase: new URL("https://blog-five-kappa-73.vercel.app"),
   title: {
     default: "Fieldnotes — Ideas worth keeping",
     template: "%s · Fieldnotes",
