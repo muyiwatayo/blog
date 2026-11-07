@@ -3350,3 +3350,126 @@ summary:focus-visible { outline-color: #39704b; }
 }
 
 .site-footer > .footer-main { display: grid; }
+
+.app-shell {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  overflow: clip;
+}
+
+.app-shell > .site-header,
+.app-shell > .site-footer {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+}
+
+.auth-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-page-shell {
+  flex: 1;
+  min-height: 0;
+}
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  min-height: 78px;
+  height: auto;
+  padding: 0 clamp(16px, 4vw, 56px);
+  background: rgb(23 61 45 / 88%);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  transition: background-color .2s ease, border-color .2s ease;
+}
+
+.site-header.is-scrolled {
+  background: rgb(23 61 45 / 48%);
+  border-bottom-color: transparent;
+}
+
+.home-shell .site-header {
+  background: rgb(23 61 45 / 88%);
+}
+
+.home-shell .site-header.is-scrolled {
+  background: rgb(23 61 45 / 48%);
+}
+
+.site-header .menu-toggle {
+  grid-column: 1;
+  justify-self: start;
+}
+
+.site-header > .wordmark {
+  grid-column: 2;
+  justify-self: center;
+  gap: 9px;
+  font-size: clamp(21px, 2vw, 27px);
+  white-space: nowrap;
+}
+
+.site-header .wordmark-home-icon {
+  width: clamp(24px, 2vw, 30px);
+  height: clamp(24px, 2vw, 30px);
+}
+
+.site-header .header-actions {
+  grid-column: 3;
+  justify-self: end;
+  min-width: 0;
+  gap: clamp(5px, 1vw, 12px);
+}
+
+.app-shell .site-header .header-write-link {
+  display: inline-flex;
+}
+
+.note-page {
+  min-height: 0;
+  padding: 24px clamp(16px, 4vw, 48px) 32px;
+}
+
+@media (max-width: 760px) {
+  .site-header {
+    min-height: 70px;
+    padding-inline: 16px;
+  }
+
+  .site-header .header-actions { gap: 6px; }
+  .site-header .account-trigger { padding: 8px 7px; }
+  .app-shell .site-header .header-write-link { padding: 7px 9px; }
+
+  .note-page { padding: 20px 16px 26px; }
+}
+
+@media (max-width: 400px) {
+  .site-header { padding-inline: 12px; }
+  .site-header > .wordmark { gap: 6px; font-size: 19px; }
+  .site-header .wordmark-home-icon { width: 23px; height: 23px; }
+  .site-header .menu-toggle {
+    width: 40px;
+    flex-basis: 40px;
+    padding-inline: 9px;
+  }
+  .site-header .menu-toggle > span:not(.menu-label) { left: 10px; }
+  .site-header .menu-label { display: none; }
+  .site-header .header-actions { gap: 4px; }
+  .site-header .account-trigger { padding-inline: 5px; font-size: 10px; }
+  .app-shell .site-header .header-write-link { padding: 6px 7px; font-size: 10px; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .site-header,
+  .site-header.is-scrolled,
+  .home-shell .site-header,
+  .home-shell .site-header.is-scrolled { background: #173d2d; }
+}

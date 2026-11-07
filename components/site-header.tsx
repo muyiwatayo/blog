@@ -17,6 +17,7 @@ type SiteHeaderProps = {
 export function SiteHeader({ authMode }: SiteHeaderProps = {}) {
   const [signedIn, setSignedIn] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [hasScrolled, setHasScrolled] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [installHelp, setInstallHelp] = useState(false);
   const [installed, setInstalled] = useState(false);
@@ -78,6 +79,16 @@ export function SiteHeader({ authMode }: SiteHeaderProps = {}) {
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [menuOpen]);
 
+  useEffect(() => {
+    function updateScrollState() {
+      setHasScrolled(window.scrollY > 8);
+    }
+
+    updateScrollState();
+    window.addEventListener("scroll", updateScrollState, { passive: true });
+    return () => window.removeEventListener("scroll", updateScrollState);
+  }, []);
+
   function closeMenu() {
     setMenuOpen(false);
   }
@@ -106,7 +117,7 @@ export function SiteHeader({ authMode }: SiteHeaderProps = {}) {
 
   return (
     <>
-      <header className="site-header">
+      <header className={`site-header${hasScrolled ? " is-scrolled" : ""}`}>
         <button
           className={`menu-toggle${menuOpen ? " is-open" : ""}`}
           type="button"
