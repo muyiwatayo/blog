@@ -10,7 +10,11 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
-export function SiteHeader() {
+type SiteHeaderProps = {
+  authMode?: "sign-in" | "sign-up";
+};
+
+export function SiteHeader({ authMode }: SiteHeaderProps = {}) {
   const [signedIn, setSignedIn] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
@@ -122,10 +126,35 @@ export function SiteHeader() {
           </span>
         </Link>
         <span className="site-header-caption">Independent notes for a noisy world</span>
+        <nav className="main-nav" aria-label="Primary navigation">
+          <Link href="/#notes" onClick={closeMenu}>Read</Link>
+          <Link href="/#writers" onClick={closeMenu}>Writers</Link>
+          <Link href="/#about" onClick={closeMenu}>About</Link>
+        </nav>
         <div className="header-actions">
-          <Link className="account-trigger" href={signedIn ? "/dashboard" : "/sign-in"}>
-            {signedIn ? "Your studio" : "Sign in"}
+          <Link
+            className="account-trigger"
+            href={
+              signedIn
+                ? "/dashboard"
+                : authMode === "sign-in"
+                  ? "/sign-up"
+                  : "/sign-in"
+            }
+          >
+            {signedIn
+              ? "Your studio"
+              : authMode === "sign-in"
+                ? "Create account"
+                : authMode === "sign-up"
+                  ? "Sign in"
+                  : "Sign in"}
           </Link>
+          {!authMode ? (
+            <Link className="header-write-link" href={signedIn ? "/dashboard" : "/sign-up"}>
+              {signedIn ? "Write a story" : "Join Fieldnotes"}
+            </Link>
+          ) : null}
           <button
             className={`menu-toggle${menuOpen ? " is-open" : ""}`}
             type="button"

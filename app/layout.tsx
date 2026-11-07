@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.webmanifest",
   other: {
-    "theme-color": "#a83245",
+    "theme-color": "#173d2d",
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "black-translucent",

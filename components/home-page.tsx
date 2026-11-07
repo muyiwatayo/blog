@@ -244,11 +244,11 @@ export function HomePage() {
         <section className="hero-section">
           <div className="hero-copy">
             <p className="eyebrow">A publication made by its readers</p>
-            <h1>A quiet place for words that matter.</h1>
+            <h1>Stories that bring us a little closer.</h1>
             <p className="hero-intro">
-              Read something thoughtful, meet its writer, or publish a story of
-              your own. There is room here for essays, poems, letters and birthday
-              tributes.
+              Read something thoughtful, meet its writer, or share a story of
+              your own. Essays, poems, letters and birthday tributes all belong
+              here.
             </p>
             <div className="hero-actions">
               <a className="home-primary-link" href="#notes">
@@ -259,17 +259,36 @@ export function HomePage() {
               </Link>
             </div>
           </div>
-          <aside className="hero-note">
-            <p className="eyebrow">What you will find</p>
-            <p>
-              Personal writing, carefully shared. Read at your own pace and save
-              the pieces you want to return to.
-            </p>
-            <ul aria-label="Writing on Fieldnotes">
-              <li>Essays and stories</li>
-              <li>Poems and letters</li>
-              <li>Birthday tributes</li>
-            </ul>
+          <aside className="hero-note" aria-label="A featured Fieldnotes story">
+            {featured?.image ? (
+              <Image
+                className="hero-feature-image"
+                fill
+                unoptimized
+                sizes="(max-width: 760px) 100vw, 52vw"
+                src={featured.image}
+                alt={`Cover for ${featured.title}`}
+              />
+            ) : (
+              <div className="hero-feature-placeholder" aria-hidden="true">
+                <span>f.</span>
+                <small>FIELDNOTES · WRITE WHAT STAYS</small>
+              </div>
+            )}
+            <div className="hero-feature-shade" />
+            <div className="hero-feature-copy">
+              <p className="eyebrow">
+                {featured ? `${featured.post_type} · From the library` : "A space for your words"}
+              </p>
+              <h2>{featured?.title || "Your next favorite story is waiting."}</h2>
+              <p>{featured?.excerpt || "Read a little. Write a little. Leave room for good stories."}</p>
+            </div>
+            <Link
+              className="hero-feature-link"
+              href={featured ? `/notes/${featured.id}` : "/sign-up"}
+            >
+              {featured ? "Read this story" : "Start writing"} <span aria-hidden="true">↗</span>
+            </Link>
           </aside>
         </section>
 

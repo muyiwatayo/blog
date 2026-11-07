@@ -61,24 +61,24 @@ export function SiteFooter() {
               <span>Field</span>notes<span className="wordmark-dot">.</span>
             </span>
           </Link>
-          <p>For the words you want to keep, and the people you want to celebrate.</p>
+          <p>Good stories make their way back to us.</p>
         </div>
         <div className="footer-navigation">
           <nav className="footer-column" aria-label="Explore Fieldnotes">
-            <h2>Explore</h2>
-            <Link href="/#notes">The library</Link>
-            <Link href="/#writers">Writers</Link>
-            <Link href="/#about">About Fieldnotes</Link>
+            <h2>Read</h2>
+            <Link href="/#notes">Latest stories</Link>
+            <Link href="/#writers">Meet the writers</Link>
+            <Link href="/#about">Our little corner</Link>
           </nav>
           <nav className="footer-column" aria-label="Your Fieldnotes account">
-            <h2>Your account</h2>
-            <Link href="/sign-up">Become a writer</Link>
+            <h2>Make something</h2>
+            <Link href="/sign-up">Start writing</Link>
             <Link href="/sign-in">Sign in</Link>
-            <Link href="/#newsletter">Monthly letter</Link>
+            <Link href="/messages">Your messages</Link>
           </nav>
         </div>
         <div className="footer-contact">
-          <p>Stay connected</p>
+          <p>Pass a good story along</p>
           <SocialLinks />
           <ShareFieldnotes />
         </div>
@@ -89,7 +89,7 @@ export function SiteFooter() {
           <Link href="/terms">Terms of service</Link>
           <Link href="/privacy">Privacy</Link>
         </nav>
-        <span>Independent notes for a noisy world.</span>
+        <span>Stories, letters, poems and everything in between.</span>
       </div>
     </footer>
   );

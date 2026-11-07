@@ -6,6 +6,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "re
 import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import { createClient } from "@/lib/supabase/client";
 import { IMAGE_MIME_TYPES, MAX_IMAGE_BYTES, type Profile, getInitials } from "@/lib/types";
 
@@ -678,6 +679,7 @@ export function MessagesInbox() {
         {error ? <p className="messages-inline-error" role="alert">{error}</p> : null}
         {notice ? <p className="messages-notice" role="status">{notice}</p> : null}
       </main>
+      <SiteFooter />
     </div>
   );
 }

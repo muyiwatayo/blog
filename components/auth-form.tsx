@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, MouseEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
 
 type AuthFormProps = { mode: "sign-in" | "sign-up" };
 
@@ -15,6 +17,26 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
+  const [leaving, setLeaving] = useState(false);
+
+  function fadeToPath(destination: string, replace = false) {
+    setLeaving(true);
+    window.setTimeout(() => {
+      if (replace) {
+        router.replace(destination, { scroll: true });
+      } else {
+        router.push(destination, { scroll: true });
+      }
+      router.refresh();
+    }, 180);
+  }
+
+  function switchMode(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    if (busy || leaving) return;
+    const destination = signingUp ? "/sign-in" : "/sign-up";
+    fadeToPath(destination);
+  }
 
   function getReturnPath() {
     const requestedPath = new URLSearchParams(window.location.search).get("next");
@@ -47,8 +69,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         });
         if (signUpError) throw signUpError;
         if (data.session) {
-          router.replace(returnPath);
-          router.refresh();
+          fadeToPath(returnPath, true);
           return;
         }
         setMessage(
@@ -60,8 +81,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           password,
         });
         if (signInError) throw signInError;
-        router.replace(returnPath);
-        router.refresh();
+        fadeToPath(returnPath, true);
       }
     } catch (submitError) {
       setError(true);
@@ -75,6 +95,7 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   async function continueWithGoogle() {
     setBusy(true);
+    setLeaving(true);
     setMessage("");
     setError(false);
     try {
@@ -93,53 +114,19 @@ export function AuthForm({ mode }: AuthFormProps) {
           ? oauthError.message
           : "Google sign-in could not be started.",
       );
+      setLeaving(false);
       setBusy(false);
     }
   }
 
   return (
-    <div className="app-shell auth-page">
+    <div className={`app-shell auth-page${leaving ? " is-leaving" : ""}`}>
+      <SiteHeader authMode={mode} />
       <main className="auth-page-shell">
-        <header className="auth-topbar">
-          <Link className="wordmark" href="/" aria-label="Fieldnotes home">
-            <svg
-              className="wordmark-home-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="m3.75 10.5 8.25-7 8.25 7v9.75h-6v-6h-4.5v6h-6V10.5Z"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <span className="wordmark-label">
-              Fieldnotes<span className="wordmark-dot">.</span>
-            </span>
-          </Link>
-          <Link className="auth-back-link" href="/">
-            Back to reading
-          </Link>
-        </header>
         <div className="auth-layout">
-          <aside className="auth-aside">
-            <p className="auth-aside-label">A place for your writing</p>
-            <h2>{signingUp ? "Start with a story." : "Your notes are waiting."}</h2>
-            <p>
-              {signingUp
-                ? "Make an account to publish essays, poems, letters and birthday tributes."
-                : "Sign in to save writing, connect with authors and continue to your writer studio."}
-            </p>
-            <div className="auth-aside-note">
-              <span aria-hidden="true">“</span>
-              <p>Good writing deserves a little room.</p>
-            </div>
-          </aside>
-          <section className="auth-card">
+          <section className="auth-card" aria-labelledby="auth-title">
             <p className="eyebrow">{signingUp ? "Create your account" : "Welcome back"}</p>
-            <h1>{signingUp ? "Join Fieldnotes" : "Sign in to Fieldnotes"}</h1>
+            <h1 id="auth-title">{signingUp ? "Join Fieldnotes" : "Sign in to Fieldnotes"}</h1>
             <p className="auth-lede">
               {signingUp
                 ? "Your account gives you a place to share and manage your stories."
@@ -233,13 +220,14 @@ export function AuthForm({ mode }: AuthFormProps) {
             </button>
             <p className="auth-switch">
               {signingUp ? "Already have an account?" : "New to Fieldnotes?"}{" "}
-              <Link href={signingUp ? "/sign-in" : "/sign-up"}>
+              <Link href={signingUp ? "/sign-in" : "/sign-up"} onClick={switchMode}>
                 {signingUp ? "Sign in" : "Create an account"}
               </Link>
             </p>
           </section>
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }
