@@ -3301,6 +3301,16 @@ summary:focus-visible { outline-color: #39704b; }
   .app-shell .site-header .account-trigger { padding: 8px 11px; font-size: 12px; }
   .app-shell .header-write-link { min-height: 36px; padding: 7px 11px; font-size: 12px; }
   .app-shell .site-header .menu-toggle { padding-right: 0; }
+  .site-menu {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    max-height: calc(100dvh - 70px);
+    overflow-y: auto;
+    padding: 24px 18px 28px;
+  }
+  .site-menu-intro > p:last-child,
+  .site-menu-cta > p { max-width: none; }
+  .site-menu-cta { padding-top: 0; }
   .site-footer { padding-inline: 22px; }
   .footer-main { padding: 40px 0 30px; }
   .footer-navigation { gap: 32px; }
@@ -3338,3 +3348,5 @@ summary:focus-visible { outline-color: #39704b; }
 @media (max-width: 760px) {
   .auth-page-shell { min-height: calc(100dvh - 70px); padding-block: 38px; }
 }
+
+.site-footer > .footer-main { display: grid; }
