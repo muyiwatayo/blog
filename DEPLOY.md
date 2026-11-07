@@ -38,6 +38,13 @@ up to 5 MB. Update the deployed
 domain under Supabase **Authentication → URL Configuration** and allow it in
 your Google OAuth redirect configuration.
 
+Run this script in the same Supabase project configured by
+`NEXT_PUBLIC_SUPABASE_URL` for the app. If you use more than one project, compare
+the project reference in that URL with the project open in the SQL editor.
+If you already set up messaging, rerun the entire script to update its policies
+and triggers. After it completes, verify that Storage contains a private bucket
+named `message-images`; without that bucket, image attachments cannot upload.
+
 ## Authentication email delivery
 
 To send account confirmation and password-reset emails through Resend, first
@@ -90,11 +97,14 @@ subscribers who have not received that digest.
 
 ```bash
 supabase login
-supabase link --project-ref tyicduuijghugeztrmmj
+supabase link --project-ref YOUR_PROJECT_REF
 supabase functions deploy send-monthly-digest --no-verify-jwt
 supabase functions deploy unsubscribe-monthly-digest --no-verify-jwt
 supabase secrets set MONTHLY_DIGEST_CRON_SECRET=replace-with-the-same-long-random-token RESEND_API_KEY=re_xxx RESEND_FROM_EMAIL="Fieldnotes <hello@your-verified-domain.com>" SITE_URL=https://your-domain.com
 ```
+
+Use the project reference from the same Supabase project as
+`NEXT_PUBLIC_SUPABASE_URL`.
 
 In the Supabase SQL editor, run `supabase-monthly-newsletter.sql` once. Replace
 `YOUR_PROJECT_REF` with the project's ref and set

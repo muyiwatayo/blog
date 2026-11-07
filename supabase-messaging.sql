@@ -57,6 +57,30 @@ drop policy if exists "Requesters can remove empty requests" on public.message_t
 drop policy if exists "Participants can read messages" on public.messages;
 drop policy if exists "Participants can send allowed messages" on public.messages;
 
+create or replace function public.can_delete_empty_message_thread(p_thread_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.message_threads t
+    where t.id = p_thread_id
+      and t.requester_id = auth.uid()
+      and t.status = 'pending'
+      and not exists (
+        select 1
+        from public.messages m
+        where m.thread_id = t.id
+      )
+  );
+$$;
+
+revoke all on function public.can_delete_empty_message_thread(uuid) from public, anon, authenticated;
+grant execute on function public.can_delete_empty_message_thread(uuid) to authenticated;
+
 create policy "Participants can read message threads"
   on public.message_threads for select to authenticated
   using (
@@ -74,13 +98,7 @@ create policy "Writers can request messages"
 
 create policy "Requesters can remove empty requests"
   on public.message_threads for delete to authenticated
-  using (
-    requester_id = auth.uid()
-    and status = 'pending'
-    and not exists (
-      select 1 from public.messages m where m.thread_id = message_threads.id
-    )
-  );
+  using (public.can_delete_empty_message_thread(id));
 
 create policy "Participants can read messages"
   on public.messages for select to authenticated
@@ -105,14 +123,7 @@ create policy "Participants can send allowed messages"
         and auth.uid() in (t.requester_id, t.recipient_id)
         and (
           t.status = 'accepted'
-          or (
-            t.status = 'pending'
-            and t.requester_id = auth.uid()
-            and not exists (
-              select 1 from public.messages prior
-              where prior.thread_id = t.id
-            )
-          )
+          or (t.status = 'pending' and t.requester_id = auth.uid())
         )
     )
   );
@@ -141,6 +152,13 @@ begin
   if thread_status = 'pending' then
     if new.sender_id <> thread_requester then
       raise exception 'Only the writer who started this request can send its introduction.';
+    end if;
+    if exists (
+      select 1
+      from public.messages m
+      where m.thread_id = new.thread_id
+    ) then
+      raise exception 'This request already has an introduction. Wait for the recipient to accept it.';
     end if;
     new.is_request_message := true;
   elsif thread_status = 'accepted' then
@@ -226,6 +244,79 @@ set public = false,
     file_size_limit = 5242880,
     allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp'];
 
+create or replace function public.can_read_message_image(p_thread_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.message_threads t
+    where t.id::text = p_thread_id
+      and t.status in ('pending', 'accepted')
+      and auth.uid() in (t.requester_id, t.recipient_id)
+  );
+$$;
+
+create or replace function public.can_upload_message_image(
+  p_thread_id text,
+  p_sender_id text
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p_sender_id = auth.uid()::text
+    and exists (
+      select 1
+      from public.message_threads t
+      where t.id::text = p_thread_id
+        and auth.uid() in (t.requester_id, t.recipient_id)
+        and (
+          t.status = 'accepted'
+          or (
+            t.status = 'pending'
+            and t.requester_id = auth.uid()
+            and not exists (
+              select 1
+              from public.messages m
+              where m.thread_id = t.id
+            )
+          )
+        )
+    );
+$$;
+
+create or replace function public.can_delete_message_image(
+  p_thread_id text,
+  p_sender_id text
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p_sender_id = auth.uid()::text
+    and exists (
+      select 1
+      from public.message_threads t
+      where t.id::text = p_thread_id
+        and auth.uid() in (t.requester_id, t.recipient_id)
+    );
+$$;
+
+revoke all on function public.can_read_message_image(text) from public, anon, authenticated;
+revoke all on function public.can_upload_message_image(text, text) from public, anon, authenticated;
+revoke all on function public.can_delete_message_image(text, text) from public, anon, authenticated;
+grant execute on function public.can_read_message_image(text) to authenticated;
+grant execute on function public.can_upload_message_image(text, text) to authenticated;
+grant execute on function public.can_delete_message_image(text, text) to authenticated;
+
 drop policy if exists "Participants can read message images" on storage.objects;
 drop policy if exists "Participants can upload message images" on storage.objects;
 drop policy if exists "Senders can delete their message images" on storage.objects;
@@ -234,36 +325,16 @@ create policy "Participants can read message images"
   on storage.objects for select to authenticated
   using (
     bucket_id = 'message-images'
-    and exists (
-      select 1
-      from public.message_threads t
-      where t.id::text = (storage.foldername(name))[1]
-        and t.status in ('pending', 'accepted')
-        and auth.uid() in (t.requester_id, t.recipient_id)
-    )
+    and public.can_read_message_image((storage.foldername(name))[1])
   );
 
 create policy "Participants can upload message images"
   on storage.objects for insert to authenticated
   with check (
     bucket_id = 'message-images'
-    and (storage.foldername(name))[2] = auth.uid()::text
-    and exists (
-      select 1
-      from public.message_threads t
-      where t.id::text = (storage.foldername(name))[1]
-        and auth.uid() in (t.requester_id, t.recipient_id)
-        and (
-          t.status = 'accepted'
-          or (
-            t.status = 'pending'
-            and t.requester_id = auth.uid()
-            and not exists (
-              select 1 from public.messages prior
-              where prior.thread_id = t.id
-            )
-          )
-        )
+    and public.can_upload_message_image(
+      (storage.foldername(name))[1],
+      (storage.foldername(name))[2]
     )
   );
 
@@ -271,11 +342,8 @@ create policy "Senders can delete their message images"
   on storage.objects for delete to authenticated
   using (
     bucket_id = 'message-images'
-    and (storage.foldername(name))[2] = auth.uid()::text
-    and exists (
-      select 1
-      from public.message_threads t
-      where t.id::text = (storage.foldername(name))[1]
-        and auth.uid() in (t.requester_id, t.recipient_id)
+    and public.can_delete_message_image(
+      (storage.foldername(name))[1],
+      (storage.foldername(name))[2]
     )
   );

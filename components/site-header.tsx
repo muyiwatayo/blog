@@ -107,6 +107,18 @@ export function SiteHeader({ authMode }: SiteHeaderProps = {}) {
   return (
     <>
       <header className="site-header">
+        <button
+          className={`menu-toggle${menuOpen ? " is-open" : ""}`}
+          type="button"
+          aria-expanded={menuOpen}
+          aria-controls="site-menu"
+          aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          <span />
+          <span />
+          <span className="menu-label">{menuOpen ? "Close" : "Menu"}</span>
+        </button>
         <Link className="wordmark" href="/" aria-label="Fieldnotes home" onClick={closeMenu}>
           <svg
             className="wordmark-home-icon"
@@ -125,12 +137,6 @@ export function SiteHeader({ authMode }: SiteHeaderProps = {}) {
             <span>Field</span>notes<span className="wordmark-dot">.</span>
           </span>
         </Link>
-        <span className="site-header-caption">Independent notes for a noisy world</span>
-        <nav className="main-nav" aria-label="Primary navigation">
-          <Link href="/#notes" onClick={closeMenu}>Read</Link>
-          <Link href="/#writers" onClick={closeMenu}>Writers</Link>
-          <Link href="/#about" onClick={closeMenu}>About</Link>
-        </nav>
         <div className="header-actions">
           <Link
             className="account-trigger"
@@ -155,18 +161,6 @@ export function SiteHeader({ authMode }: SiteHeaderProps = {}) {
               {signedIn ? "Write a story" : "Join Fieldnotes"}
             </Link>
           ) : null}
-          <button
-            className={`menu-toggle${menuOpen ? " is-open" : ""}`}
-            type="button"
-            aria-expanded={menuOpen}
-            aria-controls="site-menu"
-            aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            <span />
-            <span />
-            <span className="menu-label">{menuOpen ? "Close" : "Menu"}</span>
-          </button>
         </div>
         {menuOpen ? (
           <nav className="site-menu" id="site-menu" aria-label="Main navigation">

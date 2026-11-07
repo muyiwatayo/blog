@@ -83,6 +83,7 @@ export function MessagesInbox() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const targetIdRef = useRef("");
+  const inboxInitializedRef = useRef(false);
 
   const selectedThread = threads.find((thread) => thread.id === selectedThreadId) || null;
   const activeThreads = useMemo(
@@ -175,7 +176,10 @@ export function MessagesInbox() {
         }
 
         if (!active) return;
-        setError("");
+        if (!inboxInitializedRef.current) {
+          inboxInitializedRef.current = true;
+          setError("");
+        }
         setThreads(loadedThreads);
         setPeople(profileMap);
         setWriters((writerResult.data || []) as Person[]);
